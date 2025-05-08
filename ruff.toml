@@ -65,8 +65,8 @@ lint.exclude = [
 line-length = 10000
 
 [lint.per-file-ignores]
-"undercat/__init__.py" = ["A002"]
-"tests.py" = ["ANN", "D"]
+"rosetree/__init__.py" = ["A002"]
+"tests/*.py" = ["ANN", "D"]
 
 [lint.flake8-pytest-style]
 parametrize-names-type = "list"
