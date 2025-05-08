@@ -1,0 +1,170 @@
+from dataclasses import dataclass
+from operator import itemgetter
+
+import pytest
+
+from rosetree import FrozenTree, MemoTree, Tree
+
+
+# BaseTree subclasses to test
+TREE_CLASSES = [Tree, FrozenTree, MemoTree]
+
+def tree_example1(cls):
+    return cls(0, [cls(1), cls(2, [cls(3, [cls(4, [cls(5)])]), cls(6, [cls(7), cls(8)])])])
+
+TREE1 = tree_example1(Tree)
+
+tree_example1_str = """
+"""
+
+def test_wrap():
+    """Tests the wrap constructor."""
+    tree1 = TREE1
+    assert Tree.wrap(tree1) is tree1
+    tree2 = FrozenTree.wrap(tree1)
+    assert type(tree2) is FrozenTree
+    assert tree2 != tree1
+    assert type(tree2[0]) is Tree  # wrap only changes type of top-level tree
+    tree3 = Tree.wrap(tree2)
+    assert tree3 == tree1
+    assert tree3 is not tree1
+    assert Tree.wrap(1) == Tree(1)
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_properties(cls):
+    """Tests various properties of an example tree."""
+    tree = tree_example1(cls)
+    assert tree.parent == 0
+    assert tree.size == 9
+    assert len(tree) == 2
+    assert len(tree[0]) == 0
+    assert tree[0].is_leaf()
+    assert tree[1].parent == 2
+    assert tree.height == 4
+    assert list(tree.depth_sorted_nodes()) == [[0], [1, 2], [3, 6], [4, 7, 8], [5]]
+    assert tree.leaves == [1, 5, 7, 8]
+    assert list(tree.iter_nodes()) == list(range(9))
+    assert [subtree.parent for subtree in tree.iter_subtrees()] == list(range(9))
+    # s1 = '\n'.join(line.strip() for line in tree.pretty().strip().splitlines())
+    # s2 = '\n'.join(line.strip() for line in tree_example1_str.strip().splitlines())
+    # assert s1 == s2
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_hash_and_eq(cls):
+    """Tests hashing and equality of trees."""
+    tree1 = tree_example1(cls)
+    tree2 = tree_example1(cls)
+    assert tree1 == tree2
+    if cls in [FrozenTree, MemoTree]:
+        assert hash(tree1) == hash(tree2)
+    else:
+        with pytest.raises(TypeError, match='unhashable type'):
+            _ = hash(tree1)
+    if cls is MemoTree:
+        assert tree1 is tree2
+    else:
+        assert tree1 is not tree2
+    # converting int to str makes the trees unequal
+    tree3 = tree1.map(lambda x: str(x) if (x == 0) else x)
+    assert tree3 != tree1
+    class MyInt(int):
+        pass
+    # wrapping int into custom subclass keeps the trees equal
+    tree4 = tree1.map(MyInt)
+    assert tree4 == tree1
+    if cls is MemoTree:
+        assert tree4 is tree1
+    else:
+        assert tree4 is not tree1
+    # custom __eq__ to equate int with custom class
+    @dataclass(frozen=True)
+    class MyObj:
+        i: int
+        def __eq__(self, other):
+            if isinstance(other, int):
+                return self.i == other
+            return super().__eq__(other)
+    tree5 = tree1.map(MyObj)
+    assert tree5 == tree1
+    assert tree5 is not tree1
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_repr_eval(cls):
+    """Tests that repr and eval are inverses."""
+    tree = tree_example1(cls)
+    tree_str = repr(tree)
+    assert eval(tree_str) == tree
+    assert repr(eval(tree_str)) == tree_str
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_leaf_map(cls):
+    """Tests the leaf_map method."""
+    tree1 = tree_example1(cls)
+    tree2 = tree1.leaf_map(str)
+    assert tree2.leaves == [str(i) for i in tree1.leaves]
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_filter(cls):
+    """Tests the filter method."""
+    tree = tree_example1(cls)
+    assert tree.filter(lambda x: x % 2 == 0) == cls(0, [cls(2, [cls(6, [cls(8)])])])
+    assert tree.filter(lambda x: x % 2 == 1) is None
+    assert tree.filter(lambda x: x <= 4) == cls(0, [cls(1), cls(2, [cls(3, [cls(4)])])])
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_defoliate(cls):
+    """Tests the defoliate (leaf removal) method."""
+    tree1 = tree_example1(cls)
+    tree2 = tree1.defoliate()
+    assert tree2 == cls(0, [cls(2, [cls(3, [cls(4)]), cls(6)])])
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_prune_to_depth(cls):
+    """Tests the prune_to_depth method."""
+    tree = tree_example1(cls)
+    with pytest.raises(ValueError, match='max_depth must be a nonnegative integer'):
+        _ = tree.prune_to_depth(-1)
+    assert tree.prune_to_depth(0) == cls(0)
+    assert tree.prune_to_depth(1) == cls(0, [cls(1), cls(2)])
+    assert tree.prune_to_depth(2) == cls(0, [cls(1), cls(2, [cls(3), cls(6)])])
+    tree4 = tree.prune_to_depth(4)
+    assert tree4 == tree
+    tree5 = tree.prune_to_depth(5)
+    assert tree5 == tree
+    if cls is MemoTree:
+        assert tree4 is tree
+        assert tree5 is tree
+    else:
+        assert tree4 is not tree
+        assert tree5 is not tree
+
+def test_tag_with_unique_counter():
+    """Tests the tag_with_unique_counter method."""
+    tree2 = TREE1.tag_with_unique_counter(preorder=True)
+    tags = list(tree2.map(itemgetter(0)).iter_nodes())
+    assert tags == list(range(TREE1.size))
+    tree2 = TREE1.tag_with_unique_counter(preorder=False)
+    tags = list(tree2.map(itemgetter(0)).iter_nodes())
+    assert set(tags) == set(range(TREE1.size))
+    assert tags == [8, 0, 7, 3, 2, 1, 6, 4, 5]
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_tag_with_hash(cls):
+    """Tests the tag_with_hash method (for FrozenTree)."""
+    if issubclass(cls, FrozenTree):
+        tree = tree_example1(cls)
+        tree2 = tree.tag_with_hash()
+        leaves = set(tree.leaves)
+        for (h, node) in tree2.iter_nodes():
+            if node in leaves:
+                # check leaf hash matches what we expect
+                assert h == hash((node, ()))
+    else:
+        assert not hasattr(cls, 'tag_with_hash')
+
+
+def test_networkx():
+    """Tests the to_networkx method (converting to a networkx.DiGraph)."""
+    dg = TREE1.to_networkx()
+    assert list(dg.nodes) == list(range(TREE1.size))
+    assert list(dg.edges) == [(0, 1), (0, 2), (2, 3), (2, 6), (3, 4), (4, 5), (6, 7), (6, 8)]
