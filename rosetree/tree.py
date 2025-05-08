@@ -111,6 +111,11 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         """Returns the height (maximum distance from the root to any leaf) of the tree."""
         return self.tag_with_height().parent[0]
 
+    @property
+    def size(self) -> int:
+        """Returns the size (total number of nodes) of the tree."""
+        return self.tag_with_size().parent[0]
+
     def depth_sorted_nodes(self) -> Iterator[list[T]]:
         """Iterates through equivalence classes (lists) of nodes by increasing depth.
         Each successive list has nodes with depth one greater than that of the previous list."""
@@ -179,21 +184,20 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         If preorder=True, traverses in pre-order fashion, otherwise post-order."""
         def _incr(i: int) -> Callable[[tuple[int, tuple[int, T]]], tuple[int, tuple[int, T]]]:
             return lambda pair: (pair[0] + i, pair[1])
-        def _with_id(parent: tuple[int, T], children: Sequence[BaseTree[tuple[int, tuple[int, T]]]]) -> BaseTree[tuple[int, tuple[int, T]]]:
+        def _with_ctr(parent: tuple[int, T], children: Sequence[BaseTree[tuple[int, tuple[int, T]]]]) -> BaseTree[tuple[int, tuple[int, T]]]:
             # get sizes of child subtrees
             sizes = [child.parent[1][0] for child in children]
             # get cumulative sums of child subtree sizes
             cumsizes = list(accumulate([0] + sizes, add))
             cls = cast(Type[BaseTree[tuple[int, tuple[int, T]]]], type(self))
             if preorder:  # parent ID comes before descendants'
-                i = 0
-                func = _incr(i + 1)
+                ctr = 0
+                new_children = [child.map(_incr(i + 1)) for (i, child) in zip(cumsizes, children)]
             else:  # parent ID comes after descendants'
-                i = cumsizes[-1]
-                func = _incr(i)
-            new_children = [child.map(func) for (i, child) in zip(cumsizes, children)]
-            return cls((i, parent), new_children)
-        return self.tag_with_size().fold(_with_id).map(lambda pair: (pair[0], pair[1][1]))
+                ctr = cumsizes[-1]
+                new_children = [child.map(_incr(i)) for (i, child) in zip(cumsizes, children)]
+            return cls((ctr, parent), new_children)
+        return self.tag_with_size().fold(_with_ctr).map(lambda pair: (pair[0], pair[1][1]))
 
     def prune_to_depth(self, max_depth: int) -> BaseTree[T]:
         """Prunes the tree to the given maximum depth (distance from root)."""
