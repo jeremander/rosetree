@@ -6,7 +6,7 @@ from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
 from itertools import accumulate, chain
 from operator import add, itemgetter
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Type, TypeAlias, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypeAlias, TypeVar, Union, cast
 
 from typing_extensions import Self
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 T = TypeVar('T')
 U = TypeVar('U')
+H = TypeVar('H', bound=Hashable)
 
 # color string or RGB(A) tuple
 ColorType: TypeAlias = Union[str, tuple[float, ...]]
@@ -263,27 +264,27 @@ class Tree(BaseTree[T], UserList[T]):
         BaseTree.__init__(self, parent, children)
 
 
-class FrozenTree(BaseTree[T], tuple[T, tuple['FrozenTree[T]', ...]]):
+class FrozenTree(BaseTree[H], tuple[H, tuple['FrozenTree[H]', ...]]):
     """An immutable, hashable tree class, represented by a tuple (parent, children).
-    parent is the parent node, and children is a tuple of child subtrees."""
+    parent is the parent node (which must be hashable), and children is a tuple of child subtrees."""
 
-    def __new__(cls, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> Self:  # noqa: D102
+    def __new__(cls, parent: H, children: Optional[Sequence[FrozenTree[H]]] = None) -> Self:  # noqa: D102
         return tuple.__new__(cls, (parent, tuple(children) if children else ()))
 
-    def __init__(self, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> None:
+    def __init__(self, parent: H, children: Optional[Sequence[FrozenTree[H]]] = None) -> None:
         pass
 
     @property
-    def parent(self) -> T:  # type: ignore[override]  # noqa: D102
+    def parent(self) -> H:  # type: ignore[override]  # noqa: D102
         return tuple.__getitem__(self, 0)  # type: ignore[return-value]
 
     def __len__(self) -> int:
         return len(tuple.__getitem__(self, 1))  # type: ignore[arg-type]
 
-    def __getitem__(self, idx: Union[int, slice]) -> Union[FrozenTree[T], tuple[FrozenTree[T], ...]]:  # type: ignore[override]
+    def __getitem__(self, idx: Union[int, slice]) -> Union[FrozenTree[H], tuple[FrozenTree[H], ...]]:  # type: ignore[override]
         return tuple.__getitem__(self, 1).__getitem__(idx)  # type: ignore
 
-    def __iter__(self) -> Iterator[FrozenTree[T]]:  # type: ignore[override]
+    def __iter__(self) -> Iterator[FrozenTree[H]]:  # type: ignore[override]
         yield from tuple.__getitem__(self, 1)  # type: ignore[misc]
 
     @cached_property
@@ -293,22 +294,22 @@ class FrozenTree(BaseTree[T], tuple[T, tuple['FrozenTree[T]', ...]]):
     def __hash__(self) -> int:
         return self._hash
 
-    def tag_with_hash(self) -> FrozenTree[tuple[int, T]]:
+    def tag_with_hash(self) -> FrozenTree[tuple[int, H]]:
         """Converts each tree node to a pair (hash, node), where hash is a hash that depends on the node's entire subtree."""
-        cls = cast(Type[FrozenTree[tuple[int, T]]], type(self))
-        def _with_hash(parent: T, children: Sequence[FrozenTree[tuple[int, T]]]) -> FrozenTree[tuple[int, T]]:
+        cls = cast(Type[FrozenTree[tuple[int, H]]], type(self))
+        def _with_hash(parent: H, children: Sequence[FrozenTree[tuple[int, H]]]) -> FrozenTree[tuple[int, H]]:
             h = hash((parent, tuple(children)))
             return cls((h, parent), children)
         return self.fold(_with_hash)
 
 
-class MemoTree(FrozenTree[T]):
+class MemoTree(FrozenTree[H]):
     """An immutable, hashable tree class which memoizes all unique instances.
     This can conserve memory in the case where a large number of identical trees is created."""
 
     _instances: ClassVar[dict[Any, Any]] = {}
 
-    def __new__(cls, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> Self:  # noqa: D102
+    def __new__(cls, parent: H, children: Optional[Sequence[FrozenTree[H]]] = None) -> Self:  # noqa: D102
         children = tuple(children) if children else ()
         key = (parent, children)
         try:
