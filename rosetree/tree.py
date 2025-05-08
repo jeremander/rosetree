@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections import UserList
 from collections.abc import Iterator, Sequence
-from functools import reduce
+from functools import cached_property, reduce
 from itertools import accumulate, chain
 from operator import add, itemgetter
-from typing import TYPE_CHECKING, Callable, Optional, Type, TypeAlias, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Type, TypeAlias, TypeVar, Union, cast
 
 from typing_extensions import Self
 
@@ -27,12 +28,8 @@ GraphData: TypeAlias = tuple[int, dict[int, T], list[tuple[int, int]]]
 class BaseTree(ABC, Sequence['BaseTree[T]']):
     """Base class for a simple tree, represented by a parent node and a sequence of child subtrees."""
 
-    if TYPE_CHECKING:
-        parent: T
-
-    def __new__(cls, parent: T, children: Optional[Sequence[BaseTree[T]]] = None) -> Self:
-        """Creates a new tree from a parent node and child subtrees."""
-        raise NotImplementedError
+    def __init__(self, parent: T, children: Optional[Sequence[BaseTree[T]]] = None) -> None:
+        self.parent = parent
 
     @classmethod
     def wrap(cls, obj: Union[T, BaseTree[T]]) -> Self:
@@ -44,6 +41,17 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return cls(obj.parent, list(obj))
         # non-tree object
         return cls(obj)
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, type(self))
+            and (self.parent == other.parent)
+            and (len(self) == len(other))
+            and all(child == other_child for (child, other_child) in zip(self, other))
+        )
+
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.parent!r}, {list.__repr__(list(self))})'
@@ -246,7 +254,64 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         return dg
 
 
-    # TODO: only works on hashable tree subclass
+class Tree(BaseTree[T], UserList[T]):
+    """A simple tree class, represented by a parent node and a list of child subtrees."""
 
-    # def tag_with_hash(self) -> BaseTree[tuple[int, T]]:
-    #         """Converts each tree node to a pair (hash, node), where hash is the Python hash of the subtree rooted by the node."""
+    def __init__(self, parent: T, children: Optional[Sequence[BaseTree[T]]] = None) -> None:
+        """Creates a new tree from a parent node and child subtrees."""
+        UserList.__init__(self, children or [])  # type: ignore[misc]
+        BaseTree.__init__(self, parent, children)
+
+
+class FrozenTree(BaseTree[T], tuple[T, tuple['FrozenTree[T]', ...]]):
+    """An immutable, hashable tree class, represented by a tuple (parent, children).
+    parent is the parent node, and children is a tuple of child subtrees."""
+
+    def __new__(cls, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> Self:  # noqa: D102
+        return tuple.__new__(cls, (parent, tuple(children) if children else ()))
+
+    def __init__(self, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> None:
+        pass
+
+    @property
+    def parent(self) -> T:  # type: ignore[override]  # noqa: D102
+        return tuple.__getitem__(self, 0)  # type: ignore[return-value]
+
+    def __len__(self) -> int:
+        return len(tuple.__getitem__(self, 1))  # type: ignore[arg-type]
+
+    def __getitem__(self, idx: Union[int, slice]) -> Union[FrozenTree[T], tuple[FrozenTree[T], ...]]:  # type: ignore[override]
+        return tuple.__getitem__(self, 1).__getitem__(idx)  # type: ignore
+
+    def __iter__(self) -> Iterator[FrozenTree[T]]:  # type: ignore[override]
+        yield from tuple.__getitem__(self, 1)  # type: ignore[misc]
+
+    @cached_property
+    def _hash(self) -> int:
+        return tuple.__hash__(self)
+
+    def __hash__(self) -> int:
+        return self._hash
+
+    def tag_with_hash(self) -> FrozenTree[tuple[int, T]]:
+        """Converts each tree node to a pair (hash, node), where hash is a hash that depends on the node's entire subtree."""
+        cls = cast(Type[FrozenTree[tuple[int, T]]], type(self))
+        def _with_hash(parent: T, children: Sequence[FrozenTree[tuple[int, T]]]) -> FrozenTree[tuple[int, T]]:
+            h = hash((parent, tuple(children)))
+            return cls((h, parent), children)
+        return self.fold(_with_hash)
+
+
+class MemoTree(FrozenTree[T]):
+    """An immutable, hashable tree class which memoizes all unique instances.
+    This can conserve memory in the case where a large number of identical trees is created."""
+
+    _instances: ClassVar[dict[Any, Any]] = {}
+
+    def __new__(cls, parent: T, children: Optional[Sequence[FrozenTree[T]]] = None) -> Self:  # noqa: D102
+        children = tuple(children) if children else ()
+        key = (parent, children)
+        try:
+            return cls._instances[key]  # type: ignore[no-any-return]
+        except KeyError:
+            return cls._instances.setdefault(key, tuple.__new__(cls, key))  # type: ignore[no-any-return]
