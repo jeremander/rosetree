@@ -6,7 +6,7 @@ from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
 from itertools import accumulate, chain
 from operator import add, itemgetter
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypeAlias, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypeVar, Union, cast
 
 from typing_extensions import Self
 
@@ -22,8 +22,8 @@ U = TypeVar('U')
 H = TypeVar('H', bound=Hashable)
 
 # color string or RGB(A) tuple
-ColorType: TypeAlias = Union[str, tuple[float, ...]]
-GraphData: TypeAlias = tuple[int, dict[int, T], list[tuple[int, int]]]
+ColorType = Union[str, tuple[float, ...]]
+GraphData = tuple[int, dict[int, T], list[tuple[int, int]]]
 
 
 class BaseTree(ABC, Sequence['BaseTree[T]']):

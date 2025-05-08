@@ -32,7 +32,7 @@ class Trie(Collection[Sequence[T]]):
             if len(trie) > 0:
                 for (parent, subtrie) in trie.children.items():
                     # assume the sequence can be concatenated with +
-                    yield from _iter_with_prefix(prefix + (parent,), subtrie)  # type: ignore[operator]
+                    yield from _iter_with_prefix(prefix + (parent,), subtrie)
         return _iter_with_prefix((), self)
 
     def __contains__(self, seq: object) -> bool:
