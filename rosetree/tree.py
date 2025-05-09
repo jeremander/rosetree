@@ -6,10 +6,11 @@ from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
 from itertools import accumulate, chain
 from operator import add, itemgetter
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypedDict, TypeVar, Union, cast
 
-from typing_extensions import Self
+from typing_extensions import NotRequired, Self
 
+from .trie import Trie
 from .utils import merge_dicts
 
 
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     import networkx as nx
 
 
+S = TypeVar('S')
 T = TypeVar('T')
 U = TypeVar('U')
 H = TypeVar('H', bound=Hashable)
@@ -24,6 +26,11 @@ H = TypeVar('H', bound=Hashable)
 # color string or RGB(A) tuple
 ColorType = Union[str, tuple[float, ...]]
 GraphData = tuple[int, dict[int, T], list[tuple[int, int]]]
+
+class TreeDict(TypedDict):
+    """Type representing the result of calling `to_dict` on a `BaseTree`."""
+    p: Any
+    c: NotRequired[list[TreeDict]]
 
 
 class BaseTree(ABC, Sequence['BaseTree[T]']):
@@ -42,6 +49,15 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return cls(obj.parent, list(obj))
         # non-tree object
         return cls(obj)
+
+    @classmethod
+    def unfold(cls, func: Callable[[S], tuple[T, Sequence[S]]], seed: S) -> BaseTree[T]:
+        """Constructs a tree from an "unfolding" function and a seed.
+        The function takes a seed as input and returns a (node, children) pair, where children is a list of new seed objects to be unfolded in the next round.
+        The process terminates when every seed evaluates to have no children.
+        This is also known as an *anamorphism* for the tree functor."""
+        (parent, children) = func(seed)
+        return cls(parent, [cls.unfold(func, child) for child in children])
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -237,6 +253,26 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
 
     # CONVERSION
 
+    def to_dict(self) -> TreeDict:
+        """Converts the tree to a Python dict.
+        The dict contains two fields:
+            - `"p"`, with the parent object,
+            - `"c"`, with a list of dicts representing the child subtrees.
+        Leaf nodes will omit the `"c"` entry.
+        This is useful for things like JSON serialization."""
+        def _to_dict(parent: T, children: Sequence[TreeDict]) -> TreeDict:
+            d: TreeDict = {'p': parent}
+            if len(children) > 0:
+                d['c'] = list(children)
+            return d
+        return self.fold(_to_dict)
+
+    @classmethod
+    def from_dict(cls, d: TreeDict) -> Self:
+        """Constructs a tree from a Python dict.
+        See `BaseTree.to_dict` for more details on the structure."""
+        return cls(d['p'], [cls.from_dict(child) for child in d.get('c', [])])
+
     def to_networkx(self) -> nx.DiGraph[int]:
         """Converts the tree to a networkx.DiGraph.
         The nodes will be labeled with sequential integer IDs, and each node will have a 'data' field containing the original node data."""
@@ -257,6 +293,19 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             dg.add_node(node_id, data=node)
         dg.add_edges_from(edges)
         return dg
+
+    @classmethod
+    def from_trie(cls, trie: Trie[T]) -> BaseTree[tuple[bool, tuple[T, ...]]]:
+        """Constructs a tree from a Trie (prefix tree object).
+        Nodes are (member, prefix) pairs, where member is a boolean indicating whether the prefix is in the trie."""
+        parent = (trie.member, ())
+        pairs = [(sym, cls.from_trie(subtrie)) for (sym, subtrie) in trie.children.items()]
+        def _prepend_sym(sym: T) -> Callable[[tuple[bool, tuple[T, ...]]], tuple[bool, tuple[T, ...]]]:
+            def _prepend(pair: tuple[bool, tuple[T, ...]]) -> tuple[bool, tuple[T, ...]]:
+                (member, tup) = pair
+                return (member, (sym,) + tup)
+            return _prepend
+        return cls(parent, [child.map(_prepend_sym(sym)) for (sym, child) in pairs])  # type: ignore
 
 
 class Tree(BaseTree[T], UserList[T]):

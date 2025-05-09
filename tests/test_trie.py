@@ -1,6 +1,6 @@
 import pytest
 
-from rosetree import Trie
+from rosetree import Tree, Trie
 
 
 def test_contains():
@@ -28,10 +28,15 @@ def test_trie_properties(strings):
     # check the set of iterated tuples matches the set of strings
     tups = list(trie)
     assert all(isinstance(tup, tuple) for tup in tups)
-    assert sorted(''.join(tup) for tup in tups) == sorted(strings)
+    assert {''.join(tup) for tup in tups} == set(strings)
     # check membership (can be either strings or tuples)
     assert all(tup in trie for tup in tups)
     assert all(s in trie for s in strings)
+    # test conversion to Tree
+    tree = Tree.from_trie(trie)
+    tups = [prefix for (member, prefix) in tree.iter_nodes() if member]
+    assert {''.join(tup) for tup in tups} == set(strings)
+    # TODO: prefixes in Tree should match
 
 def test_subtrie():
     trie = Trie.from_sequences(['', 'a', 'bc', '1'])

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 from operator import itemgetter
 
 import pytest
@@ -29,6 +30,16 @@ def test_wrap():
     assert tree3 == tree1
     assert tree3 is not tree1
     assert Tree.wrap(1) == Tree(1)
+
+def test_unfold():
+    """Tests the unfold constructor."""
+    def func(n):
+        if n <= 1:
+            return (n, [])
+        half_n = n // 2
+        return (n, [half_n, n - half_n])
+    tree = Tree.unfold(func, 7)
+    assert tree == Tree(7, [Tree(3, [Tree(1), Tree(2, [Tree(1), Tree(1)])]), Tree(4, [Tree(2, [Tree(1), Tree(1)]), Tree(2, [Tree(1), Tree(1)])])])
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_properties(cls):
@@ -162,6 +173,16 @@ def test_tag_with_hash(cls):
     else:
         assert not hasattr(cls, 'tag_with_hash')
 
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_dict(cls):
+    """Tests conversion to/from a dict."""
+    tree1 = tree_example1(cls)
+    d = tree1.to_dict()
+    assert json.dumps(d) == '{"p": 0, "c": [{"p": 1}, {"p": 2, "c": [{"p": 3, "c": [{"p": 4, "c": [{"p": 5}]}]}, {"p": 6, "c": [{"p": 7}, {"p": 8}]}]}]}'
+    assert isinstance(d, dict)
+    tree2 = cls.from_dict(d)
+    assert tree2 == tree1
+    assert tree2.to_dict() == d
 
 def test_networkx():
     """Tests the to_networkx method (converting to a networkx.DiGraph)."""
