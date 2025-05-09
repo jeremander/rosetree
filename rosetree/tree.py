@@ -40,13 +40,18 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         self.parent = parent
 
     @classmethod
-    def wrap(cls, obj: Union[T, BaseTree[T]]) -> Self:
+    def wrap(cls, obj: Union[T, BaseTree[T]], *, deep: bool = False) -> Self:
         """Wraps an object in a trivial singleton tree.
-        If the object is already a BaseTree, returns the same tree (except possibly converting the top-level object to the target class)."""
-        if isinstance(obj, cls):
-            return obj
-        if isinstance(obj, BaseTree):  # wrap the top layer only
-            return cls(obj.parent, list(obj))
+        If the object is already a BaseTree, returns the same tree (except possibly converting the top-level object to the target class).
+        If deep=True, wraps each subtree recursively."""
+        if isinstance(obj, BaseTree):
+            if deep:
+                return obj.fold(cls)
+            else:
+                if isinstance(obj, cls):
+                    return obj
+                # wrap the top layer only
+                return cls(obj.parent, list(obj))
         # non-tree object
         return cls(obj)
 

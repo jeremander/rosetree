@@ -30,6 +30,15 @@ def test_wrap():
     assert tree3 == tree1
     assert tree3 is not tree1
     assert Tree.wrap(1) == Tree(1)
+    # deep wrap changes the type of all the subtrees
+    tree4 = Tree.wrap(tree1, deep=True)
+    assert tree4 == tree1
+    assert tree4 is not tree1
+    assert tree4[0] is not tree1[0]
+    tree5 = FrozenTree.wrap(tree1, deep=True)
+    assert type(tree5) is FrozenTree
+    assert tree5 != tree1
+    assert type(tree5[0]) is FrozenTree
 
 def test_unfold():
     """Tests the unfold constructor."""
