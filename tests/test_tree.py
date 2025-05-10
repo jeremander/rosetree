@@ -54,17 +54,17 @@ def test_unfold():
 def test_properties(cls):
     """Tests various properties of an example tree."""
     tree = tree_example1(cls)
-    assert tree.parent == 0
+    assert tree.node == 0
     assert tree.size == 9
     assert len(tree) == 2
     assert len(tree[0]) == 0
     assert tree[0].is_leaf()
-    assert tree[1].parent == 2
+    assert tree[1].node == 2
     assert tree.height == 4
     assert list(tree.depth_sorted_nodes()) == [[0], [1, 2], [3, 6], [4, 7, 8], [5]]
     assert tree.leaves == [1, 5, 7, 8]
     assert list(tree.iter_nodes()) == list(range(9))
-    assert [subtree.parent for subtree in tree.iter_subtrees()] == list(range(9))
+    assert [subtree.node for subtree in tree.iter_subtrees()] == list(range(9))
     # s1 = '\n'.join(line.strip() for line in tree.pretty().strip().splitlines())
     # s2 = '\n'.join(line.strip() for line in tree_example1_str.strip().splitlines())
     # assert s1 == s2
@@ -207,7 +207,7 @@ def test_dict(cls):
     """Tests conversion to/from a dict."""
     tree1 = tree_example1(cls)
     d = tree1.to_dict()
-    assert json.dumps(d) == '{"p": 0, "c": [{"p": 1}, {"p": 2, "c": [{"p": 3, "c": [{"p": 4, "c": [{"p": 5}]}]}, {"p": 6, "c": [{"p": 7}, {"p": 8}]}]}]}'
+    assert json.dumps(d) == '{"n": 0, "c": [{"n": 1}, {"n": 2, "c": [{"n": 3, "c": [{"n": 4, "c": [{"n": 5}]}]}, {"n": 6, "c": [{"n": 7}, {"n": 8}]}]}]}'
     assert isinstance(d, dict)
     tree2 = cls.from_dict(d)
     assert tree2 == tree1

@@ -54,19 +54,19 @@ def aggregate_weight_info(tree: BaseTree[Weight]) -> BaseTree[NodeWeightInfo]:
             raise ValueError(f'encountered weight {weight}, all weights must be finite')
         if weight < 0.0:
             raise ValueError(f'encountered weight {weight}, all weights must be nonnegative')
-    def func(parent: Weight, children: Sequence[BaseTree[NodeWeightInfo]]) -> BaseTree[NodeWeightInfo]:
-        check_valid_weight(parent)
-        subtotal = parent + sum(child.parent.subtotal for child in children)
-        self_to_subtotal = _safe_divide(parent, subtotal)
-        self_to_global = _safe_divide(parent, global_total)
+    def func(node: Weight, children: Sequence[BaseTree[NodeWeightInfo]]) -> BaseTree[NodeWeightInfo]:
+        check_valid_weight(node)
+        subtotal = node + sum(child.node.subtotal for child in children)
+        self_to_subtotal = _safe_divide(node, subtotal)
+        self_to_global = _safe_divide(node, global_total)
         subtotal_to_global = _safe_divide(subtotal, global_total)
         # temporary value for subtotal_to_parent (will get replaced when processing parent)
         placeholder = None if (subtotal == 0.0) else 1.0
-        info = NodeWeightInfo(parent, subtotal, self_to_subtotal, self_to_global, placeholder, subtotal_to_global)
+        info = NodeWeightInfo(node, subtotal, self_to_subtotal, self_to_global, placeholder, subtotal_to_global)
         # modify childrens' subtotal_to_parent
         def fix_child(child: BaseTree[NodeWeightInfo]) -> BaseTree[NodeWeightInfo]:
-            subtotal_to_parent = _safe_divide(child.parent.subtotal, subtotal)
-            child_node = child.parent._replace(subtotal_to_parent=subtotal_to_parent)
+            subtotal_to_parent = _safe_divide(child.node.subtotal, subtotal)
+            child_node = child.node._replace(subtotal_to_parent=subtotal_to_parent)
             return cls(child_node, list(child))
         return cls(info, list(map(fix_child, children)))
     return tree.fold(func)
