@@ -199,36 +199,36 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     def tag_with_depth(self) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (depth, node), where the depth of a node is the minimum distance to the root."""
         cls = cast(Type[BaseTree[tuple[int, T]]], type(self))
-        def _with_depth(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
+        def with_depth(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
             tagged_children = [child.map(lambda pair: (pair[0] + 1, pair[1])) for child in children]
             return cls((0, parent), tagged_children)
-        return self.fold(_with_depth)
+        return self.fold(with_depth)
 
     def tag_with_height(self) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (height, node), where the height of a node is the maximum distance to any leaf."""
         cls = cast(Type[BaseTree[tuple[int, T]]], type(self))
-        def _with_height(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
+        def with_height(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
             if len(children) == 0:
                 height = 0
             else:
                 height = max(child.parent[0] for child in children) + 1
             return cls((height, parent), children)
-        return self.fold(_with_height)
+        return self.fold(with_height)
 
     def tag_with_size(self) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (size, node), where the size of a node is the total number of nodes in that node's subtree (including the node itself)."""
         cls = cast(Type[BaseTree[tuple[int, T]]], type(self))
-        def _with_size(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
+        def with_size(parent: T, children: Sequence[BaseTree[tuple[int, T]]]) -> BaseTree[tuple[int, T]]:
             size = sum(child.parent[0] for child in children) + 1
             return cls((size, parent), children)
-        return self.fold(_with_size)
+        return self.fold(with_size)
 
     def tag_with_unique_counter(self, *, preorder: bool = True) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (id, node), where id is an incrementing integer uniquely identifying each node.
         If preorder=True, traverses in pre-order fashion, otherwise post-order."""
-        def _incr(i: int) -> Callable[[tuple[int, tuple[int, T]]], tuple[int, tuple[int, T]]]:
+        def incr(i: int) -> Callable[[tuple[int, tuple[int, T]]], tuple[int, tuple[int, T]]]:
             return lambda pair: (pair[0] + i, pair[1])
-        def _with_ctr(parent: tuple[int, T], children: Sequence[BaseTree[tuple[int, tuple[int, T]]]]) -> BaseTree[tuple[int, tuple[int, T]]]:
+        def with_ctr(parent: tuple[int, T], children: Sequence[BaseTree[tuple[int, tuple[int, T]]]]) -> BaseTree[tuple[int, tuple[int, T]]]:
             # get sizes of child subtrees
             sizes = [child.parent[1][0] for child in children]
             # get cumulative sums of child subtree sizes
@@ -236,12 +236,12 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             cls = cast(Type[BaseTree[tuple[int, tuple[int, T]]]], type(self))
             if preorder:  # parent ID comes before descendants'
                 ctr = 0
-                new_children = [child.map(_incr(i + 1)) for (i, child) in zip(cumsizes, children)]
+                new_children = [child.map(incr(i + 1)) for (i, child) in zip(cumsizes, children)]
             else:  # parent ID comes after descendants'
                 ctr = cumsizes[-1]
-                new_children = [child.map(_incr(i)) for (i, child) in zip(cumsizes, children)]
+                new_children = [child.map(incr(i)) for (i, child) in zip(cumsizes, children)]
             return cls((ctr, parent), new_children)
-        return self.tag_with_size().fold(_with_ctr).map(lambda pair: (pair[0], pair[1][1]))
+        return self.tag_with_size().fold(with_ctr).map(lambda pair: (pair[0], pair[1][1]))
 
     def prune_to_depth(self, max_depth: int) -> BaseTree[T]:
         """Prunes the tree to the given maximum depth (distance from root)."""
@@ -328,12 +328,12 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         Nodes are (member, prefix) pairs, where member is a boolean indicating whether the prefix is in the trie."""
         parent = (trie.member, ())
         pairs = [(sym, cls.from_trie(subtrie)) for (sym, subtrie) in trie.children.items()]
-        def _prepend_sym(sym: T) -> Callable[[tuple[bool, tuple[T, ...]]], tuple[bool, tuple[T, ...]]]:
-            def _prepend(pair: tuple[bool, tuple[T, ...]]) -> tuple[bool, tuple[T, ...]]:
+        def prepend_sym(sym: T) -> Callable[[tuple[bool, tuple[T, ...]]], tuple[bool, tuple[T, ...]]]:
+            def prepend(pair: tuple[bool, tuple[T, ...]]) -> tuple[bool, tuple[T, ...]]:
                 (member, tup) = pair
                 return (member, (sym,) + tup)
-            return _prepend
-        return cls(parent, [child.map(_prepend_sym(sym)) for (sym, child) in pairs])  # type: ignore
+            return prepend
+        return cls(parent, [child.map(prepend_sym(sym)) for (sym, child) in pairs])  # type: ignore
 
 
 class Tree(BaseTree[T], UserList[T]):
@@ -378,10 +378,10 @@ class FrozenTree(BaseTree[H], tuple[H, tuple['FrozenTree[H]', ...]]):
     def tag_with_hash(self) -> FrozenTree[tuple[int, H]]:
         """Converts each tree node to a pair (hash, node), where hash is a hash that depends on the node's entire subtree."""
         cls = cast(Type[FrozenTree[tuple[int, H]]], type(self))
-        def _with_hash(parent: H, children: Sequence[FrozenTree[tuple[int, H]]]) -> FrozenTree[tuple[int, H]]:
+        def with_hash(parent: H, children: Sequence[FrozenTree[tuple[int, H]]]) -> FrozenTree[tuple[int, H]]:
             h = hash((parent, tuple(children)))
             return cls((h, parent), children)
-        return self.fold(_with_hash)
+        return self.fold(with_hash)
 
 
 class MemoTree(FrozenTree[H]):
