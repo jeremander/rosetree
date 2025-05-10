@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 import json
-from operator import itemgetter
+from operator import add, itemgetter
 
 import pytest
 
-from rosetree import FrozenTree, MemoTree, Tree
+from rosetree import FrozenTree, MemoTree, Tree, zip_trees, zip_trees_with
 
 
 # BaseTree subclasses to test
@@ -198,3 +198,30 @@ def test_networkx():
     dg = TREE1.to_networkx()
     assert list(dg.nodes) == list(range(TREE1.size))
     assert list(dg.edges) == [(0, 1), (0, 2), (2, 3), (2, 6), (3, 4), (4, 5), (6, 7), (6, 8)]
+
+def test_zip_trees():
+    """Tests the zip_trees and zip_trees_with functions."""
+    square = lambda x: x ** 2
+    tree0 = TREE1.map(lambda _: 1)
+    tree1 = TREE1
+    tree2 = TREE1.map(square)
+    # 0 arguments
+    with pytest.raises(ValueError, match='must provide one or more trees'):
+        _ = zip_trees_with(lambda: 1)
+    with pytest.raises(ValueError, match='must provide one or more trees'):
+        _ = zip_trees()
+    # 1 argument
+    assert zip_trees_with(square, tree1) == tree2
+    assert zip_trees(tree1) == tree1.map(lambda x: (x,))
+    # 2 arguments
+    assert zip_trees_with(add, tree1, tree2) == tree1.map(lambda x: x + x ** 2)
+    assert zip_trees(tree1, tree1) == tree1.map(lambda x: (x, x))
+    # 3 arguments
+    add3 = lambda x1, x2, x3: x1 + x2 + x3
+    assert zip_trees_with(add3, tree0, tree1, tree2) == tree1.map(lambda x: 1 + x + x ** 2)
+    assert zip_trees(tree1, tree1, tree1) == tree1.map(lambda x: (x, x, x))
+    # mismatched shape
+    with pytest.raises(ValueError, match='trees must all have the same shape'):
+        _ = zip_trees_with(add, tree1, tree1[0])
+    with pytest.raises(ValueError, match='trees must all have the same shape'):
+        _ = zip_trees(tree1, tree1.defoliate())

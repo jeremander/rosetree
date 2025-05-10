@@ -374,3 +374,21 @@ class MemoTree(FrozenTree[H]):
             return cls._instances[key]  # type: ignore[no-any-return]
         except KeyError:
             return cls._instances.setdefault(key, tuple.__new__(cls, key))  # type: ignore[no-any-return]
+
+
+def zip_trees_with(f: Callable[..., U], *trees: BaseTree[T]) -> BaseTree[U]:
+    """Given an n-ary function and n trees of the same shape, returns a new tree which applies the function to corresponding nodes of the tree."""
+    if not trees:
+        raise ValueError('must provide one or more trees')
+    cls = cast(Type[BaseTree[U]], type(trees[0]))
+    if len({len(tree) for tree in trees}) > 1:
+        raise ValueError('trees must all have the same shape')
+    parent = f(*(tree.parent for tree in trees))
+    # iterate through tuple of subtrees for each position and recursively call zip_trees_with on each one
+    children = [zip_trees_with(f, *subtrees) for subtrees in zip(*trees)]
+    return cls(parent, children)
+
+def zip_trees(*trees: BaseTree[T]) -> BaseTree[tuple[T, ...]]:
+    """Given one or more trees of the same shape, returns a tree of tuples of corresponding nodes."""
+    f = lambda *args: args
+    return zip_trees_with(f, *trees)

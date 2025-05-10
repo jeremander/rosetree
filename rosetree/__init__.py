@@ -1,6 +1,6 @@
 """Library implementing the "rose tree" data structure."""
 
-from .tree import FrozenTree, MemoTree, Tree
+from .tree import FrozenTree, MemoTree, Tree, zip_trees, zip_trees_with
 from .trie import Trie
 
 
@@ -11,4 +11,6 @@ __all__ = [
     'MemoTree',
     'Tree',
     'Trie',
+    'zip_trees',
+    'zip_trees_with',
 ]
