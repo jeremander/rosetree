@@ -78,7 +78,7 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.parent!r}, {list.__repr__(list(self))})'
 
-    # FUNCTIONAL CONSTRUCTS
+    # FUNCTIONAL METHODS
 
     def map(self, f: Callable[[T], U]) -> BaseTree[U]:
         """Maps a function onto each node of a tree, preserving its structure."""
@@ -88,12 +88,21 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
 
     def leaf_map(self, f: Callable[[T], U]) -> BaseTree[Union[T, U]]:
         """Maps a function onto each leaf node of the tree, preserving its structure.
-        This results in a Tree which may have mixed types."""
+        This results in a tree which may have mixed types."""
         cls = cast(Type[BaseTree[Union[T, U]]], type(self))
         children = [child.leaf_map(f) if isinstance(child, BaseTree) else f(child) for child in self]
         if not children:  # root is a leaf
             return cls(f(self.parent), children)
         return cls(self.parent, children)
+
+    def internal_map(self, f: Callable[[T], U]) -> BaseTree[Union[T, U]]:
+        """Maps a function onto each internal (non-leaf) node of the tree, preserving its structure.
+        This results in a tree which may have mixed types."""
+        cls = cast(Type[BaseTree[Union[T, U]]], type(self))
+        children = [child.internal_map(f) if isinstance(child, BaseTree) else child for child in self]
+        if children:  # root is an internal node
+            return cls(f(self.parent), children)
+        return cls(self.parent)
 
     def fold(self, f: Callable[[T, Sequence[U]], U]) -> U:
         """Folds a tree into a "summary" value.
@@ -101,6 +110,20 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         This is also known as a *catamorphism* for the tree functor."""
         children = [child.fold(f) for child in self]
         return f(self.parent, children)
+
+    def reduce(self, f: Callable[[T, T], T]) -> T:
+        """Given an associative binary operation, reduces the operation over all the nodes."""
+        children = [child.reduce(f) for child in self]
+        return reduce(f, [self.parent] + children)
+
+    def aggregate_reduce(self, f: Callable[[T, T], T]) -> BaseTree[T]:
+        """Given an associative binary operation, creates a new tree where each node's value is the reduction of the operation over that node and all of its descendants."""
+        cls = type(self)
+        def func(parent: T, children: Sequence[BaseTree[T]]) -> BaseTree[T]:
+            # each child node has the reduced value, so reduce these together with the parent
+            value = reduce(f, [parent] + [child.parent for child in children])
+            return cls(value, children)
+        return self.fold(func)
 
     def filter(self, pred: Callable[[T], bool]) -> Optional[Self]:
         """Generalized filter over a tree.
@@ -375,6 +398,8 @@ class MemoTree(FrozenTree[H]):
         except KeyError:
             return cls._instances.setdefault(key, tuple.__new__(cls, key))  # type: ignore[no-any-return]
 
+
+# FUNCTIONAL CONSTRUCTS
 
 def zip_trees_with(f: Callable[..., U], *trees: BaseTree[T]) -> BaseTree[U]:
     """Given an n-ary function and n trees of the same shape, returns a new tree which applies the function to corresponding nodes of the tree."""

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import json
-from operator import add, itemgetter
+from operator import add, itemgetter, mul
 
 import pytest
 
@@ -117,11 +117,31 @@ def test_repr_eval(cls):
     assert repr(eval(tree_str)) == tree_str
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
-def test_leaf_map(cls):
-    """Tests the leaf_map method."""
+def test_leaf_and_internal_map(cls):
+    """Tests the leaf_map and internal_map methods."""
     tree1 = tree_example1(cls)
     tree2 = tree1.leaf_map(str)
     assert tree2.leaves == [str(i) for i in tree1.leaves]
+    tree3 = tree1.internal_map(str)
+    assert tree3.leaves == tree1.leaves
+    assert all(isinstance(node, str) for node in tree3.defoliate().iter_nodes())
+
+@pytest.mark.parametrize('cls', TREE_CLASSES)
+def test_reduce(cls):
+    """Tests the reduce method."""
+    tree = tree_example1(cls)
+    assert tree.reduce(add) == 36
+    assert tree.reduce(mul) == 0
+
+def test_sum_tree():
+    """Tests the reduce_aggregate method (creating a "sum tree" of subtree sums)."""
+    tree1 = TREE1
+    sum_tree1 = tree1.aggregate_reduce(add)
+    assert sum_tree1 == Tree(36, [Tree(1), Tree(35, [Tree(12, [Tree(9, [Tree(5)])]), Tree(21, [Tree(7), Tree(8)])])])
+    # more common use case is when only the leaves are nonzero
+    tree2 = TREE1.internal_map(lambda _: 0)
+    sum_tree2 = tree2.aggregate_reduce(add)
+    assert sum_tree2 == Tree(21, [Tree(1), Tree(20, [Tree(5, [Tree(5, [Tree(5)])]), Tree(15, [Tree(7), Tree(8)])])])
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_filter(cls):
