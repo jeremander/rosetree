@@ -16,8 +16,6 @@ def tree_example1(cls):
 
 TREE1 = tree_example1(Tree)
 
-tree_example1_str = """
-"""
 
 def test_wrap():
     """Tests the wrap constructor."""

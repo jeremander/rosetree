@@ -6,7 +6,7 @@ from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
 from itertools import accumulate, chain
 from operator import add, itemgetter
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Optional, Type, TypedDict, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Literal, Optional, Type, TypedDict, TypeVar, Union, cast
 
 from typing_extensions import NotRequired, Self
 
@@ -24,6 +24,11 @@ U = TypeVar('U')
 H = TypeVar('H', bound=Hashable)
 
 TreePath = tuple[T, ...]
+TreeStyle = Literal[
+    'bottom-up',
+    'top-down',
+    'long',
+]
 
 # color string or RGB(A) tuple
 ColorType = Union[str, tuple[float, ...]]
@@ -276,10 +281,15 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
 
     # DRAWING
 
-    def pretty(self, *, top_down: bool = False) -> str:
+    def pretty(self, style: TreeStyle = 'bottom-up') -> str:
         """Generates a "pretty" ASCII representation of the tree.
-        If top_down=True, positions nodes of the same depth on the same vertical level.
-        Otherwise, positions leaf nodes on the same vertical level."""
+        The following styles are supported:
+            - `long`: each node is shown on its own line (this is analogous to the Linux `tree` command for viewing files and directories)"""
+        # If top_down=True, positions nodes of the same depth on the same vertical level.
+        # Otherwise, positions leaf nodes on the same vertical level."""
+        import rosetree.draw  # defer circular import
+        if style == 'long':
+            return rosetree.draw._get_pretty_long(self)
         raise NotImplementedError
 
     def draw(
