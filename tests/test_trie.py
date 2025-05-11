@@ -3,14 +3,7 @@ import pytest
 from rosetree import Tree, Trie
 
 
-def test_contains():
-    trie = Trie.from_sequence('123')
-    assert '123' in trie
-    assert ('1', '2', '3') in trie
-    assert 123 not in trie  # type: ignore[comparison-overlap]
-    assert (1, 2, 3) not in trie  # type: ignore[comparison-overlap]
-
-@pytest.mark.parametrize('strings', [
+TEST_STRINGS = [
     [],
     [''],
     ['a'],
@@ -21,7 +14,16 @@ def test_contains():
     ['', 'a', 'aa', 'ab'],
     ['', 'a', 'bc'],
     ['', 'a', 'abc'],
-])
+]
+
+def test_contains():
+    trie = Trie.from_sequence('123')
+    assert '123' in trie
+    assert ('1', '2', '3') in trie
+    assert 123 not in trie  # type: ignore[comparison-overlap]
+    assert (1, 2, 3) not in trie  # type: ignore[comparison-overlap]
+
+@pytest.mark.parametrize('strings', TEST_STRINGS)
 def test_trie_properties(strings):
     trie = Trie.from_sequences(strings)
     assert len(trie) == len(strings)
@@ -35,8 +37,14 @@ def test_trie_properties(strings):
     # test conversion to Tree
     tree = Tree.from_trie(trie)
     tups = [prefix for (member, prefix) in tree.iter_nodes() if member]
-    assert {''.join(tup) for tup in tups} == set(strings)
-    # TODO: prefixes in Tree should match
+    ordered_strings = [''.join(tup) for tup in tups]
+    assert set(ordered_strings) == set(strings)
+    # retain only the last symbol of each prefix
+    symbol_tree = tree.map(lambda pair: (pair[0], pair[1][-1] if pair[1] else ''))
+    # check that symbol_tree produces the same list of prefixes when iterating through paths
+    paths = list(symbol_tree.iter_paths())
+    prefixes = [''.join(s for (_, s) in path) for path in paths if path[-1][0]]
+    assert prefixes == ordered_strings
 
 def test_subtrie():
     trie = Trie.from_sequences(['', 'a', 'bc', '1'])
