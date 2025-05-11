@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import json
 from operator import add, itemgetter, mul
+from types import GeneratorType
 
 import pytest
 
@@ -62,7 +63,9 @@ def test_properties(cls):
     assert tree[1].node == 2
     assert tree.height == 4
     assert list(tree.depth_sorted_nodes()) == [[0], [1, 2], [3, 6], [4, 7, 8], [5]]
+    assert type(tree.iter_leaves()) is GeneratorType
     assert tree.leaves == [1, 5, 7, 8]
+    assert tree.leaves == list(tree.iter_leaves())
     assert list(tree.iter_nodes()) == list(range(9))
     assert [subtree.node for subtree in tree.iter_subtrees()] == list(range(9))
     # s1 = '\n'.join(line.strip() for line in tree.pretty().strip().splitlines())
@@ -150,6 +153,45 @@ def test_filter(cls):
     assert tree.filter(lambda x: x % 2 == 0) == cls(0, [cls(2, [cls(6, [cls(8)])])])
     assert tree.filter(lambda x: x % 2 == 1) is None
     assert tree.filter(lambda x: x <= 4) == cls(0, [cls(1), cls(2, [cls(3, [cls(4)])])])
+
+def test_iter_paths():
+    """Tests the iter_paths and iter_full_paths methods."""
+    tree = TREE1
+    paths_pre = list(tree.iter_paths(preorder=True))
+    assert paths_pre == [
+        (0,),
+        (0, 1),
+        (0, 2),
+        (0, 2, 3),
+        (0, 2, 3, 4),
+        (0, 2, 3, 4, 5),
+        (0, 2, 6),
+        (0, 2, 6, 7),
+        (0, 2, 6, 8)
+    ]
+    assert [path[-1] for path in paths_pre] == list(tree.iter_nodes(preorder=True))
+    paths_post = list(tree.iter_paths(preorder=False))
+    assert paths_post == [
+        (0, 1),
+        (0, 2, 3, 4, 5),
+        (0, 2, 3, 4),
+        (0, 2, 3),
+        (0, 2, 6, 7),
+        (0, 2, 6, 8),
+        (0, 2, 6),
+        (0, 2),
+        (0,)
+    ]
+    assert [path[-1] for path in paths_post] == list(tree.iter_nodes(preorder=False))
+    assert set(paths_pre) == set(paths_post)
+    paths_full = list(tree.iter_full_paths())
+    assert paths_full == [
+        (0, 1),
+        (0, 2, 3, 4, 5),
+        (0, 2, 6, 7),
+        (0, 2, 6, 8)
+    ]
+    assert [path[-1] for path in paths_full] == tree.leaves
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_defoliate(cls):

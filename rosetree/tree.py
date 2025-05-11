@@ -23,6 +23,8 @@ T = TypeVar('T')
 U = TypeVar('U')
 H = TypeVar('H', bound=Hashable)
 
+TreePath = tuple[T, ...]
+
 # color string or RGB(A) tuple
 ColorType = Union[str, tuple[float, ...]]
 GraphData = tuple[int, dict[int, T], list[tuple[int, int]]]
@@ -144,11 +146,7 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     @property
     def leaves(self) -> list[T]:
         """Returns a list of the tree's leaves, in left-to-right order."""
-        def func(node: T, children: Sequence[list[T]]) -> list[T]:
-            if len(children) == 0:
-                return [node]
-            return [leaf for child in children for leaf in child]
-        return self.fold(func)
+        return list(self.iter_leaves())
 
     @property
     def height(self) -> int:
@@ -179,11 +177,36 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return chain([node], child_iter) if preorder else chain(child_iter, [node])
         return self.fold(_iter_nodes)
 
+    def iter_leaves(self) -> Iterator[T]:
+        """Iterates over leaves, in left-to-right order."""
+        def _iter_leaves(node: T, children: Sequence[Iterator[T]]) -> Iterator[T]:
+            if len(children) == 0:
+                return iter([node])
+            return (leaf for child in children for leaf in child)
+        return self.fold(_iter_leaves)
+
     def iter_subtrees(self, *, preorder: bool = True) -> Iterator[BaseTree[T]]:
         """Iterates over subtrees of each node.
         If preorder=True, does a pre-order traversal, otherwise post-order."""
         child_iter = chain.from_iterable(child.iter_subtrees(preorder=preorder) for child in self)
         return chain([self], child_iter) if preorder else chain(child_iter, [self])
+
+    def iter_paths(self, *, preorder: bool = True) -> Iterator[TreePath[T]]:
+        """Iterates over paths from the root to each node.
+        If preorder=True, does a pre-order traversal, otherwise post-order."""
+        def _iter_paths(node: T, children: Sequence[Iterator[TreePath[T]]]) -> Iterator[TreePath[T]]:
+            paths = [((node,) + path for path in tails) for tails in children]
+            subtree_paths = chain.from_iterable(paths)
+            return chain([(node,)], subtree_paths) if preorder else chain(subtree_paths, [(node,)])
+        return self.fold(_iter_paths)
+
+    def iter_full_paths(self) -> Iterator[TreePath[T]]:
+        """Iterates over paths from the root to each leaf, in left-to-right order."""
+        def _iter_full_paths(node: T, children: Sequence[Iterator[TreePath[T]]]) -> Iterator[TreePath[T]]:
+            path_iters = children if (len(children) > 0) else [iter([()])]
+            paths = [((node,) + path for path in tails) for tails in path_iters]
+            return chain.from_iterable(paths)
+        return self.fold(_iter_full_paths)
 
     # TRANSFORMATIONS
 
