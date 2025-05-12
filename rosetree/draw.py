@@ -165,6 +165,7 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False) -> str:
                 else:
                     break
         if extension_indices:
+            # branch downward from horizontal lines
             node_lines[1] = ''.join([_extend_box_char_down(c) if (j in extension_indices) else c for (j, c) in enumerate(node_lines[1])])
         text = node_lines + [''.join(row) for row in zip(*text_cols)]
         top_line = node_lines[0]
