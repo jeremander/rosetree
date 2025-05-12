@@ -284,13 +284,17 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     def pretty(self, style: TreeStyle = 'bottom-up') -> str:
         """Generates a "pretty" ASCII representation of the tree.
         The following styles are supported:
+            - `bottom-up`: (default) positions leaf nodes on the same vertical level
+            - `top-down`: positions nodes of the same depth on the same vertical level
             - `long`: each node is shown on its own line (this is analogous to the Linux `tree` command for viewing files and directories)"""
-        # If top_down=True, positions nodes of the same depth on the same vertical level.
-        # Otherwise, positions leaf nodes on the same vertical level."""
         import rosetree.draw  # defer circular import
+        if style == 'bottom-up':
+            return rosetree.draw.pretty_tree_wide(self, top_down=False)
+        if style == 'top-down':
+            return rosetree.draw.pretty_tree_wide(self, top_down=True)
         if style == 'long':
-            return rosetree.draw._get_pretty_long(self)
-        raise NotImplementedError
+            return rosetree.draw.pretty_tree_long(self)
+        raise ValueError(f'invalid pretty tree style {style!r}')
 
     def draw(
         self,
