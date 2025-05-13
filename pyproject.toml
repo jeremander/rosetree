@@ -19,6 +19,12 @@ dependencies = [
   "typing_extensions>=4.10",
 ]
 
+[project.optional-dependencies]
+draw = [
+    "matplotlib",
+    "networkx",
+]
+
 [project.urls]
 Documentation = "https://github.com/jeremander/rosetree#readme"
 Issues = "https://github.com/jeremander/rosetree/issues"

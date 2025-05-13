@@ -1,10 +1,12 @@
 """This module contains algorithms for drawing trees prettily."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil
 import re
-from typing import TYPE_CHECKING, Callable, NamedTuple, Type, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Self
 
@@ -17,7 +19,31 @@ if TYPE_CHECKING:
 
 T = TypeVar('T')
 
+
+# CONSTANTS
+
 _PARTITION_REGEX = re.compile(r'^(\s*)([^\s](.*[^\s])?)(\s*)$')
+
+
+# TYPES
+
+# color as string or RGB(A) tuple
+Color = Union[str, tuple[float, ...]]
+
+
+class Box(NamedTuple):
+    """Class representing a box (rectangle)."""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def shift(self, dx: float, dy: float) -> Self:
+        """Returns a new box, shifted by the given (dx, dy)."""
+        return type(self)(self.x + dx, self.y + dy, self.width, self.height)
+
+
+BoxPair = tuple[Box, Box]
 
 
 # LONG FORMAT
@@ -192,29 +218,14 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
 
 # PLANAR DRAWING
 
-class Box(NamedTuple):
-    """Class representing a box (rectangle)."""
-    x: float
-    y: float
-    width: float
-    height: float
-
-    def shift(self, dx: float, dy: float) -> Self:
-        """Returns a new box, shifted by the given (dx, dy)."""
-        return type(self)(self.x + dx, self.y + dy, self.width, self.height)
-
-BoxPair = tuple[Box, Box]
-
 @dataclass
-class TreeLayout:
-    """Class for laying out a tree diagram in 2D coordinates."""
+class TreeLayoutOptions:
+    """Options for laying out a tree diagram in 2D coordinates."""
     xchar: float = 0.16  # x width of characters
     ychar: float = 0.21  # y width of characters
-    xgap: float = 1.0  # horizontal gap dimension
+    xgap: float = 0.7  # horizontal gap dimension
     ygap: float = 0.7  # vertical gap dimension
     ylead: float = 0.06  # space between lines of text
-    ypad_top: float = 0.05  # space between node text and arrow above
-    ypad_bottom: float = 0.09  # space between node text and arrow below (may exceed ypad_top because some characters descend below baseline)
 
     def text_size(self, s: str) -> tuple[float, float]:
         """Gets the width and height of a block of text."""
@@ -233,10 +244,10 @@ class TreeLayout:
             return ((box1.shift(dx, dy), box2.shift(dx, dy)), node)
         return _shift
 
-    def tree_with_boxes(self, tree: BaseTree[T], *, top_down: bool = False) -> BaseTree[tuple[Box, T]]:
+    def tree_with_boxes(self, tree: BaseTree[T], *, top_down: bool = True) -> BaseTree[tuple[BoxPair, T]]:
         """Computes bounding boxes for each node of the tree for the given drawing style.
-        Returns a new tree of (box, node) pairs."""
-        cls = cast(Type[BaseTree[tuple[BoxPair, T]]], type(tree))
+        Returns a new tree of ((parent box, full box), node) pairs."""
+        cls = type(tree)
         # recursively compute (parent node box, full subtree box) for each node
         def get_boxes(node: T, children: Sequence[BaseTree[tuple[BoxPair, T]]]) -> BaseTree[tuple[BoxPair, T]]:
             # compute parent dimensions from text size
@@ -247,7 +258,7 @@ class TreeLayout:
             else:
                 child_widths = [child.node[0][1].width for child in children]
                 # get x offsets for the child boxes, inserting gaps
-                dxs = cumsums([self.xgap + child_width for child_width in child_widths] + [child_widths[-1]])
+                dxs = cumsums([self.xgap + child_width for child_width in child_widths[:-1]] + [child_widths[-1]])
                 children_width = dxs[-1]  # width of all children together
                 dy = -(parent_height + self.ygap)
                 child_heights = [child.node[0][1].height for child in children]
@@ -271,8 +282,91 @@ class TreeLayout:
                 parent_box = Box(parent_x, 0.0, parent_width, parent_height)
                 full_height = parent_height + self.ygap + max_child_height
                 full_box = Box(0.0, 0.0, full_width, full_height)
-            return cls(((parent_box, full_box), node), children)
-        def discard_full_box(pair: tuple[BoxPair, T]) -> tuple[Box, T]:
-            ((parent_box, _), node) = pair
-            return (parent_box, node)
-        return tree.fold(get_boxes).map(discard_full_box)
+            return cls(((parent_box, full_box), node), children)  # type: ignore
+        return tree.fold(get_boxes)
+
+
+@dataclass
+class TreeDrawOptions:
+    """Options for drawing a tree diagram on a 2D canvas."""
+    layout_options: TreeLayoutOptions = field(default_factory=TreeLayoutOptions)
+    text_color: Color = 'black'  # node text color
+    leaf_text_color: Optional[Color] = None  # leaf node text color (default: same as text_color)
+    edge_color: Color = 'black'
+    node_bgcolor: Color = 'white'  # background color for node rectangles
+    fontsize: float = 22.0
+    fontweight: str = 'bold'
+    fontfamily: str = 'monospace'
+    linewidth: float = 1.0  # edge line thickness
+    ypad_top: float = 0.05  # space between node text and arrow above
+    ypad_bottom: float = 0.09  # space between node text and arrow below (may exceed ypad_top because some characters descend below baseline)
+    axis_scale: float = 1.3  # converts data coordinates to inches
+    margin: float = 0.05  # outer margin of figure
+    dpi: int = 100  # dots per inch of figure
+
+    def draw(self, tree: BaseTree[tuple[BoxPair, T]], filename: Optional[str] = None) -> None:
+        """Given a tree of ((parent box, full box), node) pairs, draws the tree with matplotlib using the given settings.
+        If a filename is provided, saves the plot to this file; otherwise, displays the plot."""
+        # TODO: 'bottom-up' mode can result in lines that cross, which is ugly.
+        #   see: https://github.com/jeremander/rosetree/issues/2
+        from matplotlib.patches import Rectangle
+        import matplotlib.pyplot as plt
+        ((_, full_box), _) = tree.node
+        # convert box dimensions from characters to inches
+        (axis_width, axis_height) = (self.axis_scale * full_box.width, self.axis_scale * full_box.height)
+        (fig_width, fig_height) = (axis_width + 2 * self.margin, axis_height + 2 * self.margin)
+        plt.close(0)
+        fig = plt.figure(0, figsize=(fig_width, fig_height), dpi=self.dpi)
+        (xmargin, ymargin) = (self.margin / fig_width, self.margin / fig_height)
+        ax = fig.add_axes((xmargin, ymargin, 1.0 - 2 * xmargin, 1.0 - 2 * ymargin))
+        def _draw(node: tuple[BoxPair, T], children: Sequence[tuple[BoxPair, T]]) -> tuple[BoxPair, T]:
+            ((box, _), label) = node
+            # draw node bounding box
+            rect = Rectangle((box.x, box.y - box.height), box.width, box.height, facecolor=self.node_bgcolor)
+            ax.add_patch(rect)
+            # draw text
+            if (len(children) == 0) and (self.leaf_text_color is not None):
+                text_color = self.leaf_text_color
+            else:
+                text_color = self.text_color
+            ax.text(
+                box.x,
+                box.y - box.height,
+                str(label),
+                color=text_color,
+                fontsize=self.fontsize,
+                fontweight=self.fontweight,
+                fontfamily=self.fontfamily,
+            )
+            if self.linewidth > 0.0:  # draw edges
+                (x1, y1) = (box.x + box.width / 2.0, box.y - box.height - self.ypad_bottom)
+                for ((child_box, _), _) in children:
+                    (x2, y2) = (child_box.x + child_box.width / 2.0, child_box.y + self.ypad_top)
+                    ax.arrow(
+                        x1,
+                        y1,
+                        x2 - x1,
+                        y2 - y1,
+                        color=self.edge_color,
+                        linewidth=self.linewidth,
+                        head_width=0.0,
+                        head_length=0.0,
+                    )
+            return node
+        tree.fold(_draw)
+        xchar = self.layout_options.xchar
+        ychar = self.layout_options.ychar
+        ax.set_xlim((full_box.x - xchar, full_box.x + full_box.width + xchar))
+        ax.set_ylim((full_box.y - full_box.height - ychar, full_box.y + ychar))
+        # remove spines
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        # remove ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # set equal aspect ratio, adjust axis limits to fit the data tightly
+        ax.axis('image')
+        if filename is None:  # display plot
+            plt.show()
+        else:  # save plot to file
+            plt.savefig(filename)

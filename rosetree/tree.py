@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Literal, Op
 
 from typing_extensions import NotRequired, Self
 
-from .draw import Box, TreeLayout, pretty_tree_long, pretty_tree_wide
+from .draw import BoxPair, TreeDrawOptions, TreeLayoutOptions, pretty_tree_long, pretty_tree_wide
 from .trie import Trie
 from .utils import merge_dicts
 
@@ -31,8 +31,6 @@ TreeStyle = Literal[
     'long',
 ]
 
-# color string or RGB(A) tuple
-ColorType = Union[str, tuple[float, ...]]
 GraphData = tuple[int, dict[int, T], list[tuple[int, int]]]
 
 class TreeDict(TypedDict):
@@ -296,37 +294,33 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return pretty_tree_long(self)
         raise ValueError(f'invalid pretty tree style {style!r}')
 
-    def with_bounding_boxes(self, style: TreeStyle = 'bottom-up', *, layout: Optional[TreeLayout] = None) -> BaseTree[tuple[Box, T]]:
+    def with_bounding_boxes(self, style: TreeStyle = 'bottom-up', *, layout_options: Optional[TreeLayoutOptions] = None) -> BaseTree[tuple[BoxPair, T]]:
         """Computes bounding boxes for each node of the tree for the given drawing style.
-        You may optionally provide a TreeLayout object specifying various spacing options for laying out the drawing.
-        Returns a new tree of (box, node) pairs."""
-        if layout is None:  # use default layout
-            layout = TreeLayout()
+        You may optionally provide a TreeLayoutOptions object specifying various spacing options for laying out the drawing.
+        Returns a new tree of ((parent box, full box), node) pairs."""
+        if layout_options is None:  # use default layout
+            layout_options = TreeLayoutOptions()
         if style == 'bottom-up':
-            return layout.tree_with_boxes(self, top_down=False)
+            return layout_options.tree_with_boxes(self, top_down=False)
         if style == 'top-down':
-            return layout.tree_with_boxes(self, top_down=True)
+            return layout_options.tree_with_boxes(self, top_down=True)
         raise ValueError(f'invalid style {style!r}')
 
     def draw(
         self,
         filename: Optional[str] = None,
         *,
-        top_down: bool = False,
-        color: ColorType,
-        leaf_color: Optional[ColorType] = None,
-        edge_color: ColorType = 'black',
-        linewidth: float = 1.0,
+        style: TreeStyle = 'top-down',
+        draw_options: Optional[TreeDrawOptions] = None,
     ) -> None:
         """Draws a plot of the tree with matplotlib.
         If a filename is provided, saves it to this file; otherwise, displays the plot.
         If top_down=True, positions nodes of the same depth on the same vertical level.
-        Otherwise, positions leaf nodes on the same vertical level.
-        color: color (string or RGB tuple) of the node text
-        leaf_color: color of the leaf node text (if None, same as color)
-        edge_color: color of the edges
-        linewidth: thickness of the edges"""
-        raise NotImplementedError
+        Otherwise, positions leaf nodes on the same vertical level."""
+        if draw_options is None:  # use default options
+            draw_options = TreeDrawOptions()
+        tree_with_boxes = self.with_bounding_boxes(style=style, layout_options=draw_options.layout_options)
+        draw_options.draw(tree_with_boxes, filename=filename)
 
     # CONVERSION
 
