@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Literal, Op
 
 from typing_extensions import NotRequired, Self
 
+from .draw import Box, TreeLayout, pretty_tree_long, pretty_tree_wide
 from .trie import Trie
 from .utils import merge_dicts
 
@@ -287,14 +288,25 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             - `bottom-up`: (default) positions leaf nodes on the same vertical level
             - `top-down`: positions nodes of the same depth on the same vertical level
             - `long`: each node is shown on its own line (this is analogous to the Linux `tree` command for viewing files and directories)"""
-        import rosetree.draw  # defer circular import
         if style == 'bottom-up':
-            return rosetree.draw.pretty_tree_wide(self, top_down=False)
+            return pretty_tree_wide(self, top_down=False)
         if style == 'top-down':
-            return rosetree.draw.pretty_tree_wide(self, top_down=True)
+            return pretty_tree_wide(self, top_down=True)
         if style == 'long':
-            return rosetree.draw.pretty_tree_long(self)
+            return pretty_tree_long(self)
         raise ValueError(f'invalid pretty tree style {style!r}')
+
+    def with_bounding_boxes(self, style: TreeStyle = 'bottom-up', *, layout: Optional[TreeLayout] = None) -> BaseTree[tuple[Box, T]]:
+        """Computes bounding boxes for each node of the tree for the given drawing style.
+        You may optionally provide a TreeLayout object specifying various spacing options for laying out the drawing.
+        Returns a new tree of (box, node) pairs."""
+        if layout is None:  # use default layout
+            layout = TreeLayout()
+        if style == 'bottom-up':
+            return layout.tree_with_boxes(self, top_down=False)
+        if style == 'top-down':
+            return layout.tree_with_boxes(self, top_down=True)
+        raise ValueError(f'invalid style {style!r}')
 
     def draw(
         self,

@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+from itertools import accumulate, chain
 from typing import Hashable, Mapping, TypeVar
 
 
@@ -12,3 +14,7 @@ def merge_dicts(d1: Mapping[K, V], d2: Mapping[K, V]) -> dict[K, V]:
         raise KeyError(f'Duplicate keys found: {common_keys}')
     # Merge the dictionaries
     return {**d1, **d2}
+
+def cumsums(xs: Iterable[float]) -> list[float]:
+    """Computes cumulative sums of a sequence of numbers, starting with 0."""
+    return list(accumulate(chain([0.0], xs)))

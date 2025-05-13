@@ -1,13 +1,18 @@
 """This module contains algorithms for drawing trees prettily."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from math import ceil
 import re
-from typing import NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Callable, NamedTuple, Type, TypeVar, cast
 
 from typing_extensions import Self
 
-from .tree import BaseTree
+from .utils import cumsums
+
+
+if TYPE_CHECKING:
+    from .tree import BaseTree
 
 
 T = TypeVar('T')
@@ -184,3 +189,90 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
     # ensure the tree is padded on the left & right
     lines = _pad_lines(lines)
     return '\n'.join(lines)
+
+# PLANAR DRAWING
+
+class Box(NamedTuple):
+    """Class representing a box (rectangle)."""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def shift(self, dx: float, dy: float) -> Self:
+        """Returns a new box, shifted by the given (dx, dy)."""
+        return type(self)(self.x + dx, self.y + dy, self.width, self.height)
+
+BoxPair = tuple[Box, Box]
+
+@dataclass
+class TreeLayout:
+    """Class for laying out a tree diagram in 2D coordinates."""
+    xchar: float = 0.16  # x width of characters
+    ychar: float = 0.21  # y width of characters
+    xgap: float = 1.0  # horizontal gap dimension
+    ygap: float = 0.7  # vertical gap dimension
+    ylead: float = 0.06  # space between lines of text
+    ypad_top: float = 0.05  # space between node text and arrow above
+    ypad_bottom: float = 0.09  # space between node text and arrow below (may exceed ypad_top because some characters descend below baseline)
+
+    def text_size(self, s: str) -> tuple[float, float]:
+        """Gets the width and height of a block of text."""
+        lines = s.splitlines()
+        num_lines = len(lines)
+        if num_lines == 0:
+            width = 0.0
+        else:
+            width = self.xchar * max(map(len, lines))
+        height = self.ychar * num_lines + self.ylead * max(0, num_lines - 1)
+        return (width, height)
+
+    def _shift_coord_node_pair(self, dx: float, dy: float) -> Callable[[tuple[BoxPair, T]], tuple[BoxPair, T]]:
+        def _shift(pair: tuple[BoxPair, T]) -> tuple[BoxPair, T]:
+            ((box1, box2), node) = pair
+            return ((box1.shift(dx, dy), box2.shift(dx, dy)), node)
+        return _shift
+
+    def tree_with_boxes(self, tree: BaseTree[T], *, top_down: bool = False) -> BaseTree[tuple[Box, T]]:
+        """Computes bounding boxes for each node of the tree for the given drawing style.
+        Returns a new tree of (box, node) pairs."""
+        cls = cast(Type[BaseTree[tuple[BoxPair, T]]], type(tree))
+        # recursively compute (parent node box, full subtree box) for each node
+        def get_boxes(node: T, children: Sequence[BaseTree[tuple[BoxPair, T]]]) -> BaseTree[tuple[BoxPair, T]]:
+            # compute parent dimensions from text size
+            (parent_width, parent_height) = self.text_size(str(node))
+            num_children = len(children)
+            if num_children == 0:
+                full_box = parent_box = Box(0.0, 0.0, parent_width, parent_height)
+            else:
+                child_widths = [child.node[0][1].width for child in children]
+                # get x offsets for the child boxes, inserting gaps
+                dxs = cumsums([self.xgap + child_width for child_width in child_widths] + [child_widths[-1]])
+                children_width = dxs[-1]  # width of all children together
+                dy = -(parent_height + self.ygap)
+                child_heights = [child.node[0][1].height for child in children]
+                max_child_height = max(child_heights)
+                if top_down:  # same vertical offset for each child
+                    dys = [dy] * num_children
+                else:  # adjust vertical offset for each child's height
+                    dys = [dy - (max_child_height - height) for height in child_heights]
+                if parent_width > children_width:  # shift children under parent
+                    full_width = parent_width
+                    diff = (parent_width - children_width) / 2.0
+                    # shift each child's box to the right by the appropriate offset
+                    children = [child.map(self._shift_coord_node_pair(dx + diff, dy)) for (child, dx, dy) in zip(children, dxs, dys)]
+                    parent_x = 0.0
+                else:  # center parent over its children
+                    full_width = children_width
+                    children = [child.map(self._shift_coord_node_pair(dx, dy)) for (child, dx, dy) in zip(children, dxs, dys)]
+                    (lbox, rbox) = (children[0].node[0][0], children[-1].node[0][0])
+                    (left, right) = (lbox.x, rbox.x + rbox.width)
+                    parent_x = (left + right - parent_width) / 2.0
+                parent_box = Box(parent_x, 0.0, parent_width, parent_height)
+                full_height = parent_height + self.ygap + max_child_height
+                full_box = Box(0.0, 0.0, full_width, full_height)
+            return cls(((parent_box, full_box), node), children)
+        def discard_full_box(pair: tuple[BoxPair, T]) -> tuple[Box, T]:
+            ((parent_box, _), node) = pair
+            return (parent_box, node)
+        return tree.fold(get_boxes).map(discard_full_box)
