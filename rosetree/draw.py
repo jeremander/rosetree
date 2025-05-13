@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from math import ceil
 import re
-from typing import NamedTuple, Optional, TypeVar
+from typing import NamedTuple, TypeVar
 
 from typing_extensions import Self
 
@@ -160,15 +160,12 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
         node_lines = [_place_line(line, width, midpoint) for line in node_lines]
         node_lines.append(''.join(edges))
         # get mapping from center indices to column spans
-        # TODO: seems like this could be done more efficiently
-        def find_span(center: int) -> Optional[tuple[int, int]]:
-            return next(((start, stop) for (start, stop) in spans if start <= center < stop), None)
-        column_spans = {c: find_span(c) for c in centers}
+        column_spans = {center: (start, stop) for (center, (start, stop)) in zip(centers, spans) if (start <= center < stop)}
         # insert '|' downward to each child
         text_cols = [list(col) for col in zip(*rows)]
         # extension_indices = set()  # indices at which to branch downward
         for (j, col) in enumerate(text_cols):
-            if (span := column_spans.get(j, None)) is None:
+            if (span := column_spans.get(j)) is None:
                 continue
             for (i, row) in enumerate(rows):
                 if row[span[0]:span[1]].isspace():
