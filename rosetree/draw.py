@@ -299,8 +299,8 @@ class TreeDrawOptions:
         If a filename is provided, saves the plot to this file; otherwise, displays the plot."""
         # TODO: 'bottom-up' mode can result in lines that cross, which is ugly.
         #   see: https://github.com/jeremander/rosetree/issues/2
-        from matplotlib.patches import Rectangle
-        import matplotlib.pyplot as plt
+        from matplotlib.patches import Rectangle  # type: ignore[import-not-found]
+        import matplotlib.pyplot as plt  # type: ignore[import-not-found]
         ((_, full_box), _) = tree.node
         # convert box dimensions from characters to inches
         (axis_width, axis_height) = (self.axis_scale * full_box.width, self.axis_scale * full_box.height)
