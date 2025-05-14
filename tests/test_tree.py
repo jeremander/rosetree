@@ -137,11 +137,11 @@ def test_reduce(cls):
 def test_sum_tree():
     """Tests the reduce_aggregate method (creating a "sum tree" of subtree sums)."""
     tree1 = TREE1
-    sum_tree1 = tree1.aggregate_reduce(add)
+    sum_tree1 = tree1.scan(add)
     assert sum_tree1 == Tree(36, [Tree(1), Tree(35, [Tree(12, [Tree(9, [Tree(5)])]), Tree(21, [Tree(7), Tree(8)])])])
     # more common use case is when only the leaves are nonzero
     tree2 = TREE1.internal_map(lambda _: 0)
-    sum_tree2 = tree2.aggregate_reduce(add)
+    sum_tree2 = tree2.scan(add)
     assert sum_tree2 == Tree(21, [Tree(1), Tree(20, [Tree(5, [Tree(5, [Tree(5)])]), Tree(15, [Tree(7), Tree(8)])])])
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)

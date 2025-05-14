@@ -122,7 +122,7 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         children = [child.reduce(f) for child in self]
         return reduce(f, [self.node] + children)
 
-    def aggregate_reduce(self, f: Callable[[T, T], T]) -> BaseTree[T]:
+    def scan(self, f: Callable[[T, T], T]) -> BaseTree[T]:
         """Given an associative binary operation, creates a new tree where each node's value is the reduction of the operation over that node and all of its descendants."""
         cls = type(self)
         def func(node: T, children: Sequence[BaseTree[T]]) -> BaseTree[T]:

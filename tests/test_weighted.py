@@ -141,8 +141,8 @@ def test_aggregate_weight_info_valid(tree1, tree2):
     tree1_agg = aggregate_weight_info(tree1)
     # weights match their original ones
     assert tree1_agg.map(attrgetter('weight')) == tree1
-    # subtotals match those calculated via aggregate_reduce
-    assert tree1_agg.map(attrgetter('subtotal')) == tree1.aggregate_reduce(add)
+    # subtotals match those calculated via scan
+    assert tree1_agg.map(attrgetter('subtotal')) == tree1.scan(add)
     # self_to_subtotal is weight/subtotal
     def is_valid(info):
         if info.subtotal == 0.0:
