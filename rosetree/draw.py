@@ -142,16 +142,6 @@ class Column(NamedTuple):
         col = [delim.join(row) for row in zip(*cols)]
         return cls(width, _center_index(width), col)
 
-    def pad_to(self, width: int) -> Self:
-        """Pads the column to the given width."""
-        n = width - self.width
-        if n <= 0:
-            return self
-        lpad = ' ' * (n // 2)
-        rpad = ' ' * (n - n // 2)
-        rows = [lpad + row + rpad for row in self.rows]
-        return type(self)(width, _center_index(width), rows)
-
 
 def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int = 2) -> str:
     """Given a tree whose nows can be converted to strings via `str`, produces a pretty rendering of that tree in "wide format."
