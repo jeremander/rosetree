@@ -60,6 +60,7 @@ all = ["run-ruff", "run-vermin", "run-mypy"]
 
 [tool.hatch.envs.test]
 dependencies = [
+  "matplotlib",
   "networkx>=3",
   "pytest>=8.3",
   "pytest-cov>=6.0",

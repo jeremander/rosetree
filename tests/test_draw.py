@@ -1,3 +1,8 @@
+from collections import defaultdict
+import importlib
+from operator import itemgetter
+
+import matplotlib
 import pytest
 
 from rosetree import Tree
@@ -267,6 +272,30 @@ PRETTY_TREES = [
 def _normalize_pretty(s):
     return '\n'.join(line.rstrip() for line in s.splitlines()).rstrip('\n')
 
+def _group_by_key(it, keyfunc):
+    d = defaultdict(list)
+    for elt in it:
+        d[keyfunc(elt)].append(elt)
+    return d
+
+def _is_increasing(it, strict: bool = True):
+    prev = None
+    for elt in it:
+        if (prev is not None) and ((elt <= prev) if strict else (elt < prev)):
+            return False
+        prev = elt
+    return True
+
+@pytest.fixture
+def use_agg_backend():
+    """Temporarily sets the matplotlib backend to 'Agg', which does not make use of a GUI."""
+    backend = matplotlib.get_backend()
+    matplotlib.use('Agg', force=True)
+    importlib.reload(matplotlib.pyplot)
+    yield
+    matplotlib.use(backend, force=True)
+    importlib.reload(matplotlib.pyplot)
+
 @pytest.mark.parametrize('item', PRETTY_TREES)
 def test_pretty(item):
     """Tests pretty string drawing of trees."""
@@ -282,3 +311,50 @@ def test_invalid_pretty_style():
     """Tests that a ValueError is raised if an invalid pretty style is provided to Tree.pretty."""
     with pytest.raises(ValueError, match="invalid pretty tree style 'fake'"):
         _ = PRETTY_TREES[0]['tree'].pretty(style='fake')
+
+@pytest.mark.parametrize('tree', [item['tree'] for item in PRETTY_TREES])
+@pytest.mark.parametrize('style', ['top-down', 'bottom-up'])
+def test_with_bounding_boxes(tree, style):
+    """Tests properties of Tree.with_bounding_boxes."""
+    # get number of lines of each node in the tree
+    num_lines_tree = tree.map(lambda node: len(str(node).splitlines()))
+    min_num_lines = num_lines_tree.reduce(min)
+    max_num_lines = num_lines_tree.reduce(max)
+    box_tree = tree.with_bounding_boxes(style=style).map(itemgetter(0))
+    if style == 'top-down':
+        pairs = list(box_tree.tag_with_depth().iter_nodes())
+    else:
+        pairs = list(box_tree.tag_with_height().iter_nodes())
+    # y is the same for all nodes of the same depth or height,
+    # and x is strictly increasing for each layer (assuming pre-order or post-order traversal)
+    groups = _group_by_key(pairs, itemgetter(0))
+    groups = [groups[key] for key in sorted(groups)]
+    for group in groups:
+        if min_num_lines == max_num_lines == 1:
+            # node y values may vary based on lines of text, so only check this if all nodes are 1 line
+            assert len({box.y for (_, (box, _)) in group}) == 1
+            assert len({box.y for (_, (_, box)) in group}) == 1
+        assert _is_increasing([box.x for (_, (box, _)) in group])
+        assert _is_increasing([box.x for (_, (_, box)) in group])
+    if style == 'top-down':
+        # y must increase with decreasing depth
+        assert _is_increasing([-group[0][1][0].y for group in groups])
+        assert _is_increasing([-group[0][1][1].y for group in groups])
+    else:
+        # y must increase with increasing height
+        assert _is_increasing([group[0][1][0].y for group in groups])
+        assert _is_increasing([group[0][1][1].y for group in groups])
+    # left-to-right leaves must have increasing x
+    boxes = list(box_tree.iter_leaves())
+    assert _is_increasing([box.x for (box, _) in boxes])
+    assert _is_increasing([box.x for (_, box) in boxes])
+
+DRAW_TREES = [PRETTY_TREES[i] for i in [1, 2, 12]]
+
+@pytest.mark.parametrize('tree', [item['tree'] for item in DRAW_TREES])
+@pytest.mark.parametrize('style', ['top-down', 'bottom-up'])
+def test_draw_matplotlib(use_agg_backend, monkeypatch, tree, style):
+    """Tests running Tree.draw.
+    Does not launch a matplotlib GUI, just checks that the command runs without error."""
+    monkeypatch.setattr(matplotlib.pyplot, 'show', lambda: None)
+    tree.draw(style=style)

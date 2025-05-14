@@ -46,6 +46,7 @@ lint.ignore = [
     "D415",  # first line ending with punctuation
     "E501",  # line length
     "E731",  # assign lambda expression
+    "ICN001",  # require import conventional abbrevs
     "PT001",  # use of pytest.fixture (with no parens)
     "PT013",  # use simple import of pytest
     "PTH123",  # Path.open instead of regular open
