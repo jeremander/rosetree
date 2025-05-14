@@ -26,8 +26,8 @@ H = TypeVar('H', bound=Hashable)
 
 TreePath = tuple[T, ...]
 TreeStyle = Literal[
-    'bottom-up',
     'top-down',
+    'bottom-up',
     'long',
 ]
 
@@ -280,30 +280,30 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
 
     # DRAWING
 
-    def pretty(self, style: TreeStyle = 'bottom-up') -> str:
+    def pretty(self, style: TreeStyle = 'top-down') -> str:
         """Generates a "pretty" ASCII representation of the tree.
         The following styles are supported:
-            - `bottom-up`: (default) positions leaf nodes on the same vertical level
-            - `top-down`: positions nodes of the same depth on the same vertical level
+            - `top-down`: (default) positions nodes of the same depth on the same vertical level
+            - `bottom-up`: positions leaf nodes on the same vertical level
             - `long`: each node is shown on its own line (this is analogous to the Linux `tree` command for viewing files and directories)"""
-        if style == 'bottom-up':
-            return pretty_tree_wide(self, top_down=False)
         if style == 'top-down':
             return pretty_tree_wide(self, top_down=True)
+        if style == 'bottom-up':
+            return pretty_tree_wide(self, top_down=False)
         if style == 'long':
             return pretty_tree_long(self)
         raise ValueError(f'invalid pretty tree style {style!r}')
 
-    def with_bounding_boxes(self, style: TreeStyle = 'bottom-up', *, layout_options: Optional[TreeLayoutOptions] = None) -> BaseTree[tuple[BoxPair, T]]:
+    def with_bounding_boxes(self, style: TreeStyle = 'top-down', *, layout_options: Optional[TreeLayoutOptions] = None) -> BaseTree[tuple[BoxPair, T]]:
         """Computes bounding boxes for each node of the tree for the given drawing style.
         You may optionally provide a TreeLayoutOptions object specifying various spacing options for laying out the drawing.
         Returns a new tree of ((parent box, full box), node) pairs."""
         if layout_options is None:  # use default layout
             layout_options = TreeLayoutOptions()
-        if style == 'bottom-up':
-            return layout_options.tree_with_boxes(self, top_down=False)
         if style == 'top-down':
             return layout_options.tree_with_boxes(self, top_down=True)
+        if style == 'bottom-up':
+            return layout_options.tree_with_boxes(self, top_down=False)
         raise ValueError(f'invalid style {style!r}')
 
     def draw(
@@ -315,8 +315,8 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     ) -> None:
         """Draws a plot of the tree with matplotlib.
         If a filename is provided, saves it to this file; otherwise, displays the plot.
-        If top_down=True, positions nodes of the same depth on the same vertical level.
-        Otherwise, positions leaf nodes on the same vertical level."""
+        If style='top-down', positions nodes of the same depth on the same vertical level.
+        If style='bottom-up', positions leaf nodes on the same vertical level."""
         if draw_options is None:  # use default options
             draw_options = TreeDrawOptions()
         tree_with_boxes = self.with_bounding_boxes(style=style, layout_options=draw_options.layout_options)
