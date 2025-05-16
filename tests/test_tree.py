@@ -61,6 +61,7 @@ def test_properties(cls):
     assert tree[1].node == 2
     assert tree.height == 4
     assert list(tree.depth_sorted_nodes()) == [[0], [1, 2], [3, 6], [4, 7, 8], [5]]
+    assert list(tree.height_sorted_nodes()) == [[1, 5, 7, 8], [4, 6], [3], [2], [0]]
     assert type(tree.iter_leaves()) is GeneratorType
     assert tree.leaves == [1, 5, 7, 8]
     assert tree.leaves == list(tree.iter_leaves())

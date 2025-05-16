@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections import UserList
+from collections import UserList, defaultdict
 from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
 from itertools import accumulate, chain
@@ -178,6 +178,18 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         while children:
             yield [child.node for child in children]
             children = [grandchild for child in children for grandchild in child]
+
+    def height_sorted_nodes(self) -> Iterator[list[T]]:
+        """Iterates through equivalence classes (lists) of nodes by increasing height.
+        Each successive list has nodes with height one greater than that of the previous list."""
+        # NOTE: this is not easily done recursively, so we adopt a more brute-force strategy of enumerating all nodes with their height, and grouping them by height.
+        nodes_by_height = defaultdict(list)
+        for (height, node) in self.tag_with_height().iter_nodes():
+            nodes_by_height[height].append(node)
+        max_height = max(nodes_by_height)
+        # all heights from 0..max_height should have at least one node
+        for height in range(max_height + 1):
+            yield nodes_by_height[height]
 
     # ITERATION
 
