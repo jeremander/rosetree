@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import json
-from operator import add, itemgetter, mul
+from operator import add, itemgetter, mul, sub
 from types import GeneratorType
 
 import pytest
@@ -66,9 +66,6 @@ def test_properties(cls):
     assert tree.leaves == list(tree.iter_leaves())
     assert list(tree.iter_nodes()) == list(range(9))
     assert [subtree.node for subtree in tree.iter_subtrees()] == list(range(9))
-    # s1 = '\n'.join(line.strip() for line in tree.pretty().strip().splitlines())
-    # s2 = '\n'.join(line.strip() for line in tree_example1_str.strip().splitlines())
-    # assert s1 == s2
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_hash_and_eq(cls):
@@ -133,6 +130,7 @@ def test_reduce(cls):
     tree = tree_example1(cls)
     assert tree.reduce(add) == 36
     assert tree.reduce(mul) == 0
+    assert tree.reduce(sub) == 4
 
 def test_sum_tree():
     """Tests the reduce_aggregate method (creating a "sum tree" of subtree sums)."""
@@ -143,6 +141,9 @@ def test_sum_tree():
     tree2 = TREE1.internal_map(lambda _: 0)
     sum_tree2 = tree2.scan(add)
     assert sum_tree2 == Tree(21, [Tree(1), Tree(20, [Tree(5, [Tree(5, [Tree(5)])]), Tree(15, [Tree(7), Tree(8)])])])
+    # also test a non-commutative operation
+    diff_tree1 = tree1.scan(sub)
+    assert diff_tree1 == Tree(4, [Tree(1), Tree(5, [Tree(4, [Tree(-1, [Tree(5)])]), Tree(7, [Tree(7), Tree(8)])])])
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_filter(cls):
