@@ -298,6 +298,7 @@ def f(node, children):
     return Tree((node, num_descendants), children)
 
 >>> tree_with_descendants = tree.fold(f)
+
 >>> print(tree_with_descendants.pretty())
            (1, 4)
        ┌─────┴─────┐
