@@ -81,14 +81,14 @@ You may also provide a `draw_options` argument to customize some aspects of the 
 
 ### Accessing elements and properties
 
-A `Tree` is actually implemented as a simple Python list of its child subtrees, plus an additional `node` attribute to access the top-level node:
+A `Tree` is actually implemented as a simple Python list of child subtrees, plus an additional `node` attribute to access the top-level node:
 
 ```python
 # this is the root node
 >>> tree.node
 1
 
-# this is the left-most child subtree
+# this is the left-hand child subtree
 >>> tree[0]
 Tree(2, [Tree(3, []), Tree(4, [])])
 
@@ -142,7 +142,7 @@ You can iterate over nodes, leaves, or subtrees:
  Tree(5, [])]
 ```
 
-Note: all of these `iter_` methods produce a *lazy* generator to avoid storing all the items in memory. You can step through the generator with a for loop, or generate all the elements by calling `list`, as in the examples above.
+**Note**: all of these `iter_` methods produce a *lazy* generator to avoid storing all the items in memory. You can step through the generator with a for loop, or generate all the elements by calling `list`, as in the examples above.
 
 For convenience, you can call `tree.leaves` to get a list of all the leaf nodes.
 
@@ -181,7 +181,7 @@ from copy import deepcopy
  3
 ```
 
-Note: Python lists are not optimized for insertion/deletion performance, so you should use this approach sparingly. It is better to build your tree structure up-front and change it as little as possible.
+**Note**: Python lists are not optimized for insertion/deletion performance, so you should use this approach sparingly. It is better to build your tree structure up-front and change it as little as possible.
 
 ### Functional tree operations
 
@@ -232,7 +232,7 @@ For convenience there is also a `leaf_map` method, which applies the function on
 
 The `reduce` method takes a function with two arguments used to combine two values into a single value. It recursively applies the operation to combine all nodes into one value.
 
-The input function should take two values of the same type and return a value of that type. The function does not have to be associative or commutative, but `reduce` will be more "well-behaved" if it is (i.e. the result will not depend as much on the structure/order of the nodes).
+The input function should take two values of the same type and return a value of that type. The function does not have to be associative or commutative, but `reduce` will be more "well-behaved" if it is (i.e. the result will not depend on the arrangement of nodes in the tree).
 
 ```python
 from operator import add, mul
