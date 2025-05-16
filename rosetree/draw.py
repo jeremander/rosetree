@@ -123,6 +123,16 @@ class Column(NamedTuple):
     center: int  # center index
     rows: list[str]  # rows of text
 
+    def pad_to(self, width: int) -> Self:
+        """Pads the column to the given width."""
+        n = width - self.width
+        if n <= 0:
+            return self
+        lpad = ' ' * (n // 2)
+        rpad = ' ' * (n - n // 2)
+        rows = [lpad + row + rpad for row in self.rows]
+        return type(self)(width, _center_index(width), rows)
+
     @classmethod
     def conjoin(cls, columns: Sequence[Self], spacing: int, top_down: bool) -> Self:
         """Conjoint multiple columns horizontally into one.
@@ -158,7 +168,7 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
             return Column(node_width, _center_index(node_width), node_lines)
         (child_widths, child_centers, _) = zip(*children)
         if num_children == 1:
-            (width, center, rows) = children[0]
+            (width, center, rows) = children[0].pad_to(node_width)
             spans = [(0, width)]
             centers = [center]
             midpoint = center
@@ -167,7 +177,7 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
             # calculate the smallest spacing required for the child width to exceed the parent width
             num_spaces = max(spacing, ceil((node_width - sum(child_widths)) / (num_children - 1)))
             (width, center, rows) = Column.conjoin(children, num_spaces, top_down)
-            # place parent at the midpoint of the leftmotst and rightmost child's centers
+            # place parent at the midpoint of the leftmost and rightmost child's centers
             spans = [(0, child_widths[0])]
             for child_width in child_widths[1:]:
                 start = spans[-1][1]

@@ -132,8 +132,8 @@ def test_reduce(cls):
     assert tree.reduce(mul) == 0
     assert tree.reduce(sub) == 4
 
-def test_sum_tree():
-    """Tests the reduce_aggregate method (creating a "sum tree" of subtree sums)."""
+def test_scan():
+    """Tests the scan method (e.g. creating a "sum tree" of subtree sums)."""
     tree1 = TREE1
     sum_tree1 = tree1.scan(add)
     assert sum_tree1 == Tree(36, [Tree(1), Tree(35, [Tree(12, [Tree(9, [Tree(5)])]), Tree(21, [Tree(7), Tree(8)])])])
