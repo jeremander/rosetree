@@ -117,21 +117,25 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         children = [child.fold(f) for child in self]
         return f(self.node, children)
 
-    def reduce(self, f: Callable[[T, T], T]) -> T:
-        """Given a binary operation, reduces the operation over all the nodes."""
-        children = [child.reduce(f) for child in self]
+    def reduce(self, f: Callable[[T, T], T], *, preorder: bool = True) -> T:
+        """Given a binary operation, reduces the operation over all the nodes.
+        If preorder=True, calls the function with the parent node as the first argument; otherwise calls it as the second argument."""
+        children = [child.reduce(f, preorder=preorder) for child in self]
         if not children:
             return self.node
-        return f(self.node, reduce(f, children))
+        reduced_children = reduce(f, children)
+        return f(self.node, reduced_children) if preorder else f(reduced_children, self.node)
 
-    def scan(self, f: Callable[[T, T], T]) -> BaseTree[T]:
-        """Given a binary operation, creates a new tree where each node's value is the reduction of the operation over that node and all of its descendants."""
+    def scan(self, f: Callable[[T, T], T], *, preorder: bool = True) -> BaseTree[T]:
+        """Given a binary operation, creates a new tree where each node's value is the reduction of the operation over that node and all of its descendants.
+        If preorder=True, calls the function with the parent node as the first argument; otherwise calls it as the second argument."""
         cls = type(self)
         def func(node: T, children: Sequence[BaseTree[T]]) -> BaseTree[T]:
             if not children:
                 return cls(node)
+            reduced_children = reduce(f, [child.node for child in children])
             # each child node has the reduced value, so reduce these together with the parent
-            value = f(node, reduce(f, [child.node for child in children]))
+            value = f(node, reduced_children) if preorder else f(reduced_children, node)
             return cls(value, children)
         return self.fold(func)
 

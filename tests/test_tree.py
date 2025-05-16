@@ -128,22 +128,31 @@ def test_leaf_and_internal_map(cls):
 def test_reduce(cls):
     """Tests the reduce method."""
     tree = tree_example1(cls)
-    assert tree.reduce(add) == 36
-    assert tree.reduce(mul) == 0
-    assert tree.reduce(sub) == 4
+    assert tree.reduce(add, preorder=True) == 36
+    assert tree.reduce(add, preorder=False) == 36
+    assert tree[1].reduce(mul, preorder=True) == 40320
+    assert tree[1].reduce(mul, preorder=False) == 40320
+    assert tree.reduce(sub, preorder=True) == 4
+    assert tree.reduce(sub, preorder=False) == -2
 
 def test_scan():
     """Tests the scan method (e.g. creating a "sum tree" of subtree sums)."""
     tree1 = TREE1
     sum_tree1 = tree1.scan(add)
     assert sum_tree1 == Tree(36, [Tree(1), Tree(35, [Tree(12, [Tree(9, [Tree(5)])]), Tree(21, [Tree(7), Tree(8)])])])
+    assert sum_tree1.node == tree1.reduce(add)
     # more common use case is when only the leaves are nonzero
     tree2 = TREE1.internal_map(lambda _: 0)
     sum_tree2 = tree2.scan(add)
     assert sum_tree2 == Tree(21, [Tree(1), Tree(20, [Tree(5, [Tree(5, [Tree(5)])]), Tree(15, [Tree(7), Tree(8)])])])
-    # also test a non-commutative operation
+    assert sum_tree2.node == tree2.reduce(add)
+    # also test a non-commutative operation (subtraction)
     diff_tree1 = tree1.scan(sub)
     assert diff_tree1 == Tree(4, [Tree(1), Tree(5, [Tree(4, [Tree(-1, [Tree(5)])]), Tree(7, [Tree(7), Tree(8)])])])
+    assert diff_tree1.node == tree1.reduce(sub)
+    diff_tree2 = tree1.scan(sub, preorder=False)
+    assert diff_tree2 == Tree(-2, [Tree(1), Tree(3, [Tree(-2, [Tree(1, [Tree(5)])]), Tree(-7, [Tree(7), Tree(8)])])])
+    assert diff_tree2.node == tree1.reduce(sub, preorder=False)
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_filter(cls):
