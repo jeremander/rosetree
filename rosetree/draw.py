@@ -6,15 +6,18 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from math import ceil
 import re
-from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Self
 
-from .utils import cumsums
+from .utils import cumsums, make_percent
 
 
 if TYPE_CHECKING:
+    import plotly.graph_objects as go
+
     from .tree import BaseTree
+    from .weighted import NodeWeightInfo, Treemap
 
 
 T = TypeVar('T')
@@ -386,3 +389,54 @@ class TreeDrawOptions:
 #######################
 # NODE-WEIGHTED TREES #
 #######################
+
+def _plotly_treemap_args(treemap: Treemap[T], color_func: Optional[Callable[[T], str]] = None) -> dict[str, Any]:
+    # NOTE: plotly has a couple of annoying quirks that may or may not be worth fixing:
+    #   - It doesn't seem to let you put custom text on non-leaf nodes.
+    #   - It doesn't provide hover text for the root node (this could be fixed by creating a "virtual" parent of the root node).
+    bold: Callable[[T], str] = lambda label: f'<b>{label}</b>' if label else ''
+    edges = list(treemap.iter_edges())
+    parents = [None] + [bold(parent[1]) for (parent, _) in edges]
+    nodes = [treemap.node] + [child for (_, child) in edges]
+    labels = [bold(label) for (_, label) in nodes]
+    if color_func is None:
+        marker_colors = None
+    else:
+        marker_colors = [color_func(label) for (_, label) in nodes]
+    values = [info.weight for (info, _) in nodes]
+    # customize the text
+    def get_text(info: NodeWeightInfo) -> str:
+        lines = []
+        if 0 < info.weight < info.subtotal:
+            lines.append(f'self: {info.weight}')
+        lines.append(f'total: {info.subtotal}')
+        if info.subtotal_to_global is not None:
+            lines.append(f'{make_percent(info.subtotal_to_global)} overall')
+        if info.subtotal_to_parent is not None:
+            lines.append(f'{make_percent(info.subtotal_to_parent)} of parent')
+        return '<br>'.join(lines)
+    text = [get_text(info) for (info, _) in nodes]
+    return {
+        'branchvalues': 'remainder',
+        'labels': labels,
+        'parents': parents,
+        'values': values,
+        'text': text,
+        'textinfo': 'label+value',  # comment this out to include all text in leaf nodes
+        'hoverinfo': 'label+text',
+        'marker_colors': marker_colors,
+    }
+
+def _draw_plotly_treemap(treemap: Treemap[T], color_func: Optional[Callable[[T], str]] = None) -> go.Figure:
+    import plotly.graph_objects as go
+    kwargs = _plotly_treemap_args(treemap, color_func=color_func)
+    return go.Figure(go.Treemap(**kwargs))
+
+def show_or_save_figure(fig: go.Figure, filename: Optional[str] = None, **kwargs: Any) -> None:
+    """Given a plotly Figure and an optional filename, displays the figure if the filename is None, and otherwise saves it to the given file.
+    Any extra keyword arguments are passed to either Figure.show or write_image."""
+    import plotly.io as pio
+    if filename is None:
+        fig.show(**kwargs)
+    else:
+        pio.write_image(fig, filename, **kwargs)

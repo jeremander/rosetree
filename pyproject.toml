@@ -21,8 +21,10 @@ dependencies = [
 
 [project.optional-dependencies]
 draw = [
-    "matplotlib",
-    "networkx",
+  "kaleido",
+  "matplotlib",
+  "networkx",
+  "plotly",
 ]
 
 [project.urls]
@@ -62,6 +64,7 @@ all = ["run-ruff", "run-vermin", "run-mypy"]
 dependencies = [
   "matplotlib",
   "networkx>=3",
+  "plotly",
   "pytest>=8.3",
   "pytest-cov>=6.0",
 ]
