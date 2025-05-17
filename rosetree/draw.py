@@ -14,7 +14,7 @@ from .utils import cumsums, make_percent
 
 
 if TYPE_CHECKING:
-    import plotly.graph_objects as go
+    import plotly.graph_objects as go  # type: ignore[import-not-found]
 
     from .tree import BaseTree
     from .weighted import NodeWeightInfo, Treemap
@@ -435,7 +435,7 @@ def _draw_plotly_treemap(treemap: Treemap[T], color_func: Optional[Callable[[T],
 def show_or_save_figure(fig: go.Figure, filename: Optional[str] = None, **kwargs: Any) -> None:
     """Given a plotly Figure and an optional filename, displays the figure if the filename is None, and otherwise saves it to the given file.
     Any extra keyword arguments are passed to either Figure.show or write_image."""
-    import plotly.io as pio
+    import plotly.io as pio  # type: ignore[import-not-found]
     if filename is None:
         fig.show(**kwargs)
     else:

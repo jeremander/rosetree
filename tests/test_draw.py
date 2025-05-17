@@ -300,9 +300,11 @@ def _is_increasing(it, strict: bool = True):
 def use_agg_backend():
     """Temporarily sets the matplotlib backend to 'Agg', which does not make use of a GUI."""
     backend = matplotlib.get_backend()
+    matplotlib.pyplot.close('all')
     matplotlib.use('Agg', force=True)
     importlib.reload(matplotlib.pyplot)
     yield
+    matplotlib.pyplot.close('all')
     matplotlib.use(backend, force=True)
     importlib.reload(matplotlib.pyplot)
 

@@ -62,6 +62,7 @@ all = ["run-ruff", "run-vermin", "run-mypy"]
 
 [tool.hatch.envs.test]
 dependencies = [
+  "kaleido",
   "matplotlib",
   "networkx>=3",
   "plotly",
