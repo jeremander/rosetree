@@ -256,6 +256,26 @@ def test_tag_with_hash(cls):
     else:
         assert not hasattr(cls, 'tag_with_hash')
 
+def test_to_path_tree():
+    """Tests conversion of nodes to paths."""
+    tree2 = TREE1.to_path_tree()
+    assert tree2 == Tree((0,), [
+        Tree((0, 1)),
+        Tree((0, 2), [
+            Tree((0, 2, 3), [
+                Tree((0, 2, 3, 4), [
+                    Tree((0, 2, 3, 4, 5))
+                ])
+            ]),
+            Tree((0, 2, 6), [
+                Tree((0, 2, 6, 7)),
+                Tree((0, 2, 6, 8))
+            ])
+        ])
+    ])
+    for preorder in [False, True]:
+        assert list(TREE1.iter_paths(preorder=preorder)) == list(tree2.iter_nodes(preorder=preorder))
+
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_dict(cls):
     """Tests conversion to/from a dict."""
