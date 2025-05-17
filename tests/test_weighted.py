@@ -2,9 +2,11 @@ from math import inf
 import operator
 from operator import add, attrgetter
 
+import plotly.graph_objects as go
 import pytest
 
-from rosetree import Tree
+from rosetree import Tree, Trie
+from rosetree.draw import _plotly_treemap_args
 from rosetree.weighted import NodeWeightInfo, Treemap, aggregate_weight_info
 
 
@@ -156,3 +158,56 @@ def test_aggregate_weight_info_valid(tree1, tree2):
     tree4 = tree1_agg.tag_with_unique_counter().map(flip)
     # aggregation of tree with counter tags matches counter-tagged aggregate tree
     assert Treemap.from_node_weighted_tree(tree3) == Treemap.wrap(tree4, deep=True)
+
+
+# example monthly budget by category
+BUDGET = [
+    ('Finance:Retirement', 250),
+    ('Finance:Saving', 400),
+    ('Food:Groceries', 600),
+    ('Food:Restaurant', 150),
+    ('Food:Restaurant:FastFood', 50),
+    ('Health', 400),
+    ('Home:Rent', 1400),
+    ('Home:Tech:Cellphone', 90),
+    ('Home:Tech:Internet', 60),
+    ('Home:Tech:Streaming', 45),
+    ('Home:Utilities', 250),
+    ('Car:Gas', 120),
+    ('Car:Insurance', 75),
+    ('Car:Payment', 250),
+    ('Car:Tolls', 15),
+    ('Shopping', 115),
+    ('Shopping:Clothes', 100),
+    ('Shopping:Hobbies', 150),
+]
+
+@pytest.fixture(scope='module')
+def budget_tree():
+    """Gets an example budget represented as a WeightedNodeTree whose nodes are (amount, category) pairs."""
+    path_dict = {tuple(category.split(':')): amount for (category, amount) in BUDGET}
+    trie = Trie.from_sequences(path_dict)
+    def get_weighted_node(pair):
+        (_, path) = pair
+        amount = path_dict.get(path, 0)
+        node = path[-1] if path else None
+        return (amount, node)
+    return Tree.from_trie(trie).map(get_weighted_node)
+
+def test_budget_treemap(monkeypatch, tmp_path, budget_tree):
+    """Tests drawing a plotly treemap for the example budget treemap."""
+    monkeypatch.setattr(go.Figure, 'show', lambda _: None)
+    treemap = Treemap.from_node_weighted_tree(budget_tree)
+    args = _plotly_treemap_args(treemap)
+    assert args['branchvalues'] == 'remainder'
+    assert args['values'] == [info.weight for (info, _) in treemap.iter_nodes()]
+    assert args['marker_colors'] is None
+    color_func = lambda _: 'green'
+    args = _plotly_treemap_args(treemap, color_func=color_func)
+    assert args['marker_colors'] == ['green' for _ in range(treemap.size)]
+    # create plotly plot (but don't actually display it)
+    treemap.draw_treemap()
+    # save plot to an SVG file
+    svg_path = tmp_path / 'treemap.svg'
+    treemap.draw_treemap(svg_path)
+    assert svg_path.exists()

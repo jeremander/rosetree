@@ -85,3 +85,11 @@ class Treemap(Tree[tuple[NodeWeightInfo, T]]):
         def replace_weight(info: NodeWeightInfo, pair: WeightedNode[T]) -> tuple[NodeWeightInfo, T]:
             return (info, pair[1])
         return cls.wrap(zip_trees_with(replace_weight, weight_info_tree, tree), deep=True)  # type: ignore[misc]
+
+    def draw_treemap(self, filename: Optional[str] = None) -> None:
+        """Draws a treemap diagram.
+        If a filename is provided, saves it to this file."""
+        from rosetree.draw import _draw_plotly_treemap, show_or_save_figure
+        # TODO: what info to show; extra plotly options
+        fig = _draw_plotly_treemap(self)
+        show_or_save_figure(fig, filename)
