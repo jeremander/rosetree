@@ -123,7 +123,7 @@ def test_leaf_and_internal_map(cls):
     assert tree2.leaves == [str(i) for i in tree1.leaves]
     tree3 = tree1.internal_map(str)
     assert tree3.leaves == tree1.leaves
-    assert all(isinstance(node, str) for node in tree3.defoliate().iter_nodes())
+    assert all(isinstance(node, str) for node in tree3.remove_leaves().iter_nodes())
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_reduce(cls):
@@ -203,10 +203,10 @@ def test_iter_paths():
     assert [path[-1] for path in paths_full] == tree.leaves
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
-def test_defoliate(cls):
-    """Tests the defoliate (leaf removal) method."""
+def test_remove_leaves(cls):
+    """Tests the remove_leaves method."""
     tree1 = tree_example1(cls)
-    tree2 = tree1.defoliate()
+    tree2 = tree1.remove_leaves()
     assert tree2 == cls(0, [cls(2, [cls(3, [cls(4)]), cls(6)])])
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
@@ -295,4 +295,4 @@ def test_zip_trees():
     with pytest.raises(ValueError, match='trees must all have the same shape'):
         _ = zip_trees_with(add, tree1, tree1[0])
     with pytest.raises(ValueError, match='trees must all have the same shape'):
-        _ = zip_trees(tree1, tree1.defoliate())
+        _ = zip_trees(tree1, tree1.remove_leaves())

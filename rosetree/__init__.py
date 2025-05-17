@@ -5,7 +5,7 @@ from .tree import FrozenTree, MemoTree, Tree, zip_trees, zip_trees_with
 from .trie import Trie
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 __all__ = [
     'FrozenTree',

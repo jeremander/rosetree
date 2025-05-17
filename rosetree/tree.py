@@ -234,13 +234,14 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
 
     # TRANSFORMATIONS
 
-    def defoliate(self) -> Optional[Self]:
+    def remove_leaves(self) -> Optional[Self]:
         """Removes all the leaves from the tree.
+        This returns a new tree (does *not* update in-place).
         Nodes that were parents of leaves will now become leaves.
         Returns None if the root of the tree is itself a leaf."""
         if self.is_leaf():
             return None
-        children = [subtree for child in self if (subtree := child.defoliate()) is not None]
+        children = [subtree for child in self if (subtree := child.remove_leaves()) is not None]
         return type(self)(self.node, children)
 
     def tag_with_depth(self) -> BaseTree[tuple[int, T]]:
