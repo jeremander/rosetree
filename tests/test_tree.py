@@ -273,6 +273,7 @@ def test_to_path_tree():
             ])
         ])
     ])
+    assert tree2.map(lambda path: path[-1]) == TREE1
     for preorder in [False, True]:
         assert list(TREE1.iter_paths(preorder=preorder)) == list(tree2.iter_nodes(preorder=preorder))
 
