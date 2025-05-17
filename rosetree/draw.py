@@ -20,12 +20,16 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 
 
-# CONSTANTS
+#############
+# CONSTANTS #
+#############
 
 _PARTITION_REGEX = re.compile(r'^(\s*)([^\s](.*[^\s])?)(\s*)$')
 
 
-# TYPES
+#########
+# TYPES #
+#########
 
 # color as string or RGB(A) tuple
 Color = Union[str, tuple[float, ...]]
@@ -45,6 +49,10 @@ class Box(NamedTuple):
 
 BoxPair = tuple[Box, Box]
 
+
+#############
+# ASCII ART #
+#############
 
 # LONG FORMAT
 
@@ -216,7 +224,10 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
     lines = _pad_lines(lines)
     return '\n'.join(lines)
 
-# PLANAR DRAWING
+
+##################
+# PLANAR DRAWING #
+##################
 
 @dataclass
 class TreeLayoutOptions:
@@ -370,3 +381,8 @@ class TreeDrawOptions:
             plt.show()
         else:  # save plot to file
             plt.savefig(filename)
+
+
+#######################
+# NODE-WEIGHTED TREES #
+#######################
