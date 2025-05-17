@@ -255,6 +255,14 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
         children = [subtree for child in self if (subtree := child.remove_leaves()) is not None]
         return type(self)(self.node, children)
 
+    def prune_to_depth(self, max_depth: int) -> BaseTree[T]:
+        """Prunes the tree to the given maximum depth (distance from root)."""
+        if max_depth < 0:
+            raise ValueError('max_depth must be a nonnegative integer')
+        filtered = self.tag_with_depth().filter(lambda pair: pair[0] <= max_depth)
+        assert filtered is not None  # (since depth of root is 0)
+        return filtered.map(itemgetter(1))
+
     def tag_with_depth(self) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (depth, node), where the depth of a node is the minimum distance to the root."""
         cls = cast(Type[BaseTree[tuple[int, T]]], type(self))
@@ -302,13 +310,16 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return cls((ctr, node), new_children)
         return self.tag_with_size().fold(with_ctr).map(lambda pair: (pair[0], pair[1][1]))
 
-    def prune_to_depth(self, max_depth: int) -> BaseTree[T]:
-        """Prunes the tree to the given maximum depth (distance from root)."""
-        if max_depth < 0:
-            raise ValueError('max_depth must be a nonnegative integer')
-        filtered = self.tag_with_depth().filter(lambda pair: pair[0] <= max_depth)
-        assert filtered is not None  # (since depth of root is 0)
-        return filtered.map(itemgetter(1))
+    def to_path_tree(self) -> BaseTree[tuple[T, ...]]:
+        """Converts each tree node to a path from the root to that node.
+        Each path is represented as a tuple of nodes starting from the root."""
+        # NOTE: this implementation is O(n^2), which can be expensive for lots of nodes
+        cls = cast(Type[BaseTree[tuple[T, ...]]], type(self))
+        def _to_path_tree(node: T, children: Sequence[BaseTree[tuple[T, ...]]]) -> BaseTree[tuple[T, ...]]:
+            node_path = (node,)
+            prefix_with_node = lambda path: node_path + path
+            return cls((node,), [child.map(prefix_with_node) for child in children])
+        return self.fold(_to_path_tree)
 
     # DRAWING
 
