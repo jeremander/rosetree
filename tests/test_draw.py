@@ -318,9 +318,13 @@ def test_pretty(item):
             assert _normalize_pretty(tree.pretty(style=style)) == _normalize_pretty(output)
 
 def test_invalid_pretty_style():
-    """Tests that a ValueError is raised if an invalid pretty style is provided to Tree.pretty."""
+    """Tests that a ValueError is raised if an invalid pretty style is provided for tree-drawing methods."""
+    tree = PRETTY_TREES[0]['tree']
     with pytest.raises(ValueError, match="invalid pretty tree style 'fake'"):
-        _ = PRETTY_TREES[0]['tree'].pretty(style='fake')
+        _ = tree.pretty(style='fake')
+    for style in ['fake', 'long']:
+        with pytest.raises(ValueError, match=f"invalid style '{style}'"):
+            _ = tree.with_bounding_boxes(style=style)
 
 @pytest.mark.parametrize('tree', [item['tree'] for item in PRETTY_TREES])
 @pytest.mark.parametrize('style', ['top-down', 'bottom-up'])

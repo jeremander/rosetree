@@ -118,7 +118,7 @@ A few other `Tree` methods can be used to calculate properties of the tree:
 2
 ```
 
-You can iterate over nodes, leaves, or subtrees:
+You can iterate over nodes, leaves, edges, or subtrees:
 
 ```python
 # iterate nodes with "pre-order" traversal (parents before children)
@@ -132,6 +132,10 @@ You can iterate over nodes, leaves, or subtrees:
 # iterate leaves in left-to-right order
 >>> list(tree.iter_leaves())
 [3, 4, 5]
+
+# iterate edges with pre-order traversal
+>>> list(tree.iter_edges())
+[(1, 2), (2, 3), (2, 4), (1, 5)]
 
 # iterate all subtrees with pre-order traversal
 >>> list(tree.iter_subtrees())

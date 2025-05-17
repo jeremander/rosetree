@@ -66,6 +66,9 @@ def test_properties(cls):
     assert tree.leaves == [1, 5, 7, 8]
     assert tree.leaves == list(tree.iter_leaves())
     assert list(tree.iter_nodes()) == list(range(9))
+    assert list(tree.iter_nodes(preorder=False)) == [1, 5, 4, 3, 7, 8, 6, 2, 0]
+    assert list(tree.iter_edges()) == [(0, 1), (0, 2), (2, 3), (3, 4), (4, 5), (2, 6), (6, 7), (6, 8)]
+    assert list(tree.iter_edges(preorder=False)) == [(0, 1), (4, 5), (3, 4), (2, 3), (6, 7), (6, 8), (2, 6), (0, 2)]
     assert [subtree.node for subtree in tree.iter_subtrees()] == list(range(9))
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)

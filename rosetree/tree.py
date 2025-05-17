@@ -209,6 +209,17 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return (leaf for child in children for leaf in child)
         return self.fold(_iter_leaves)
 
+    def iter_edges(self, *, preorder: bool = True) -> Iterator[tuple[T, T]]:
+        """Iterates over (parent, child) edges.
+        If preorder=True, does a pre-order traversal, otherwise post-order."""
+        def _iter_edges(node: T, children: Sequence[tuple[T, Iterator[tuple[T, T]]]]) -> tuple[T, Iterator[tuple[T, T]]]:
+            if preorder:
+                edges_iter = chain.from_iterable(chain([(node, child)], child_edges) for (child, child_edges) in children)
+            else:
+                edges_iter = chain.from_iterable(chain(child_edges, [(node, child)]) for (child, child_edges) in children)
+            return (node, edges_iter)
+        return self.fold(_iter_edges)[1]
+
     def iter_subtrees(self, *, preorder: bool = True) -> Iterator[BaseTree[T]]:
         """Iterates over subtrees of each node.
         If preorder=True, does a pre-order traversal, otherwise post-order."""
