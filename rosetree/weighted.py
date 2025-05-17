@@ -5,7 +5,9 @@ from math import isfinite
 from operator import add, itemgetter
 from typing import NamedTuple, Optional, Type, TypeVar, cast
 
-from .tree import BaseTree, zip_trees_with
+from typing_extensions import Self
+
+from .tree import BaseTree, Tree, zip_trees_with
 
 
 T = TypeVar('T')
@@ -71,10 +73,15 @@ def aggregate_weight_info(tree: BaseTree[Weight]) -> BaseTree[NodeWeightInfo]:
         return cls(info, list(map(fix_child, children)))
     return tree.fold(func)
 
-def aggregate_node_weighted_tree(tree: NodeWeightedTree[T]) -> BaseTree[tuple[NodeWeightInfo, T]]:
-    """Given a weighted tree whose nodes are (weight, data) pairs, returns an identically structured tree where instead of weights we have `NodeWeightInfo` tuples providing more information such as subtree total weight, fraction of a subtree's total to its parent subtree's total, etc.
-    Raises a ValueError if any weight is negative."""
-    weight_info_tree = aggregate_weight_info(tree.map(itemgetter(0)))
-    def replace_weight(info: NodeWeightInfo, pair: WeightedNode[T]) -> tuple[NodeWeightInfo, T]:
-        return (info, pair[1])
-    return zip_trees_with(replace_weight, weight_info_tree, tree)  # type: ignore[misc]
+
+class Treemap(Tree[tuple[NodeWeightInfo, T]]):
+    """A tree tagged with `NodeWeightInfo` data, providing information about each node's weight relative to its parent and the global total."""
+
+    @classmethod
+    def from_node_weighted_tree(cls, tree: NodeWeightedTree[T]) -> Self:
+        """Constructs a Treemap from a tree whose nodes are (weight, data) pairs.
+        This tree will be structured identically to the original, but instead of weights we have `NodeWeightInfo` objects."""
+        weight_info_tree = aggregate_weight_info(tree.map(itemgetter(0)))
+        def replace_weight(info: NodeWeightInfo, pair: WeightedNode[T]) -> tuple[NodeWeightInfo, T]:
+            return (info, pair[1])
+        return cls.wrap(zip_trees_with(replace_weight, weight_info_tree, tree), deep=True)  # type: ignore[misc]

@@ -5,7 +5,7 @@ from operator import add, attrgetter
 import pytest
 
 from rosetree import Tree
-from rosetree.weighted import NodeWeightInfo, aggregate_node_weighted_tree, aggregate_weight_info
+from rosetree.weighted import NodeWeightInfo, Treemap, aggregate_weight_info
 
 
 def flip(pair):
@@ -155,4 +155,4 @@ def test_aggregate_weight_info_valid(tree1, tree2):
     tree3 = tree1.tag_with_unique_counter().map(flip)
     tree4 = tree1_agg.tag_with_unique_counter().map(flip)
     # aggregation of tree with counter tags matches counter-tagged aggregate tree
-    assert aggregate_node_weighted_tree(tree3) == tree4
+    assert Treemap.from_node_weighted_tree(tree3) == Treemap.wrap(tree4, deep=True)
