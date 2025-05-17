@@ -4,7 +4,7 @@ from abc import ABC
 from collections import UserList, defaultdict
 from collections.abc import Iterator, Sequence
 from functools import cached_property, reduce
-from itertools import accumulate, chain
+from itertools import chain
 from operator import add, itemgetter
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Hashable, Literal, Optional, Type, TypedDict, TypeVar, Union, cast
 
@@ -293,33 +293,30 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
     def tag_with_unique_counter(self, *, preorder: bool = True) -> BaseTree[tuple[int, T]]:
         """Converts each tree node to a pair (id, node), where id is an incrementing integer uniquely identifying each node.
         If preorder=True, traverses in pre-order fashion, otherwise post-order."""
-        def incr(i: int) -> Callable[[tuple[int, tuple[int, T]]], tuple[int, tuple[int, T]]]:
-            return lambda pair: (pair[0] + i, pair[1])
-        def with_ctr(node: tuple[int, T], children: Sequence[BaseTree[tuple[int, tuple[int, T]]]]) -> BaseTree[tuple[int, tuple[int, T]]]:
-            # get sizes of child subtrees
-            sizes = [child.node[1][0] for child in children]
-            # get cumulative sums of child subtree sizes
-            cumsizes = list(accumulate([0] + sizes, add))
-            cls = cast(Type[BaseTree[tuple[int, tuple[int, T]]]], type(self))
-            if preorder:  # parent ID comes before descendants'
-                ctr = 0
-                new_children = [child.map(incr(i + 1)) for (i, child) in zip(cumsizes, children)]
-            else:  # parent ID comes after descendants'
-                ctr = cumsizes[-1]
-                new_children = [child.map(incr(i)) for (i, child) in zip(cumsizes, children)]
-            return cls((ctr, node), new_children)
-        return self.tag_with_size().fold(with_ctr).map(lambda pair: (pair[0], pair[1][1]))
+        cls = cast(Type[BaseTree[tuple[int, T]]], type(self))
+        ctr = 0
+        def tag_with_ctr(node: T) -> tuple[int, T]:
+            nonlocal ctr
+            pair = (ctr, node)
+            ctr += 1
+            return pair
+        def map_tag(tree: BaseTree[T]) -> BaseTree[tuple[int, T]]:
+            if preorder:
+                parent = tag_with_ctr(tree.node)
+                children = [map_tag(child) for child in tree]
+            else:
+                children = [map_tag(child) for child in tree]
+                parent = tag_with_ctr(tree.node)
+            return cls(parent, children)
+        return map_tag(self)
 
     def to_path_tree(self) -> BaseTree[tuple[T, ...]]:
         """Converts each tree node to a path from the root to that node.
         Each path is represented as a tuple of nodes starting from the root."""
-        # NOTE: this implementation is O(n^2), which can be expensive for lots of nodes
-        cls = cast(Type[BaseTree[tuple[T, ...]]], type(self))
-        def _to_path_tree(node: T, children: Sequence[BaseTree[tuple[T, ...]]]) -> BaseTree[tuple[T, ...]]:
-            node_path = (node,)
-            prefix_with_node = lambda path: node_path + path
-            return cls((node,), [child.map(prefix_with_node) for child in children])
-        return self.fold(_to_path_tree)
+        paths = list(self.iter_paths(preorder=True))
+        def get_path(pair: tuple[int, T]) -> tuple[T, ...]:
+            return paths[pair[0]]
+        return self.tag_with_unique_counter().map(get_path)
 
     # DRAWING
 
