@@ -318,6 +318,16 @@ class BaseTree(ABC, Sequence['BaseTree[T]']):
             return paths[pair[0]]
         return self.tag_with_unique_counter().map(get_path)
 
+    def tag_with_index_path(self) -> BaseTree[tuple[tuple[int, ...], T]]:
+        """Converts each tree node to a pair (idx_path, node), where idx_path is a sequence of integers representing the path down the tree."""
+        cls = cast(Type[BaseTree[int]], type(self))
+        def to_child_index_tree(node: T, children: Sequence[BaseTree[int]]) -> BaseTree[int]:
+            # creates a tree where each child node is its index
+            return cls(0, [cls(i, list(child)) for (i, child) in enumerate(children)])
+        idx_tree = self.fold(to_child_index_tree)
+        idx_path_tree = idx_tree.to_path_tree()
+        return cast(BaseTree[tuple[tuple[int, ...], T]], zip_trees(idx_path_tree, self))
+
     # DRAWING
 
     def pretty(self, style: TreeStyle = 'top-down') -> str:
