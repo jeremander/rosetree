@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from math import isfinite
 from operator import add, itemgetter
-from typing import Literal, NamedTuple, Optional, Type, TypeVar, cast
+from typing import Any, Literal, NamedTuple, Optional, Type, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -89,11 +89,11 @@ class Treemap(Tree[tuple[NodeWeightInfo, T]]):
             return (info, pair[1])
         return cls.wrap(zip_trees_with(replace_weight, weight_info_tree, tree), deep=True)  # type: ignore[misc]
 
-    def draw_treemap(self, filename: Optional[str] = None, *, style: TreemapStyle = 'treemap') -> None:
+    def draw_treemap(self, filename: Optional[str] = None, *, style: TreemapStyle = 'treemap', **kwargs: Any) -> None:
         """Draws a treemap diagram.
         If a filename is provided, saves it to this file.
-        A style may also be provided ('treemap', 'icicle', or 'sunburst'), indicating what style of treemap plot to make."""
+        A style may also be provided ('treemap', 'icicle', or 'sunburst'), indicating what style of treemap plot to make.
+        Extra keyword arguments are passed to either Figure.show or write_image."""
         from rosetree.draw import _draw_plotly_treemap, show_or_save_figure
-        # TODO: what info to show; extra plotly options
         fig = _draw_plotly_treemap(self, style=style)
-        show_or_save_figure(fig, filename)
+        show_or_save_figure(fig, filename, **kwargs)
