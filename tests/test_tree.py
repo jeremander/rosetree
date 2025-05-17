@@ -257,7 +257,7 @@ def test_tag_with_hash(cls):
         assert not hasattr(cls, 'tag_with_hash')
 
 def test_to_path_tree():
-    """Tests conversion of nodes to paths."""
+    """Tests the to_path_tree method."""
     tree2 = TREE1.to_path_tree()
     assert tree2 == Tree((0,), [
         Tree((0, 1)),
@@ -269,13 +269,35 @@ def test_to_path_tree():
             ]),
             Tree((0, 2, 6), [
                 Tree((0, 2, 6, 7)),
-                Tree((0, 2, 6, 8))
+                Tree((0, 2, 6, 8)),
             ])
         ])
     ])
     assert tree2.map(lambda path: path[-1]) == TREE1
     for preorder in [False, True]:
         assert list(TREE1.iter_paths(preorder=preorder)) == list(tree2.iter_nodes(preorder=preorder))
+
+def test_tag_with_index_path():
+    """Tests the tag_with_index_path method."""
+    tree2 = TREE1.tag_with_index_path()
+    assert tree2 == Tree(((0,), 0), [
+        Tree(((0, 0), 1)),
+        Tree(((0, 1), 2), [
+            Tree(((0, 1, 0), 3), [
+                Tree(((0, 1, 0, 0), 4), [
+                    Tree(((0, 1, 0, 0, 0), 5))
+                ])
+            ]),
+            Tree(((0, 1, 1), 6), [
+                Tree(((0, 1, 1, 0), 7)),
+                Tree(((0, 1, 1, 1), 8)),
+            ])
+        ])
+    ])
+    assert tree2.map(itemgetter(1)) == TREE1
+    # index paths in preorder traversal order are sorted
+    idx_paths = [idx_path for (idx_path, _) in tree2.iter_nodes()]
+    assert sorted(idx_paths) == idx_paths
 
 @pytest.mark.parametrize('cls', TREE_CLASSES)
 def test_dict(cls):
