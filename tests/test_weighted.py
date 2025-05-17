@@ -7,7 +7,7 @@ import pytest
 
 from rosetree import Tree, Trie
 from rosetree.draw import _plotly_treemap_args
-from rosetree.weighted import NodeWeightInfo, Treemap, aggregate_weight_info
+from rosetree.weighted import NodeWeightInfo, Treemap, TreemapStyle, aggregate_weight_info
 
 
 def flip(pair):
@@ -199,14 +199,17 @@ def test_budget_treemap(monkeypatch, tmp_path, budget_tree):
     monkeypatch.setattr(go.Figure, 'show', lambda _: None)
     treemap = Treemap.from_node_weighted_tree(budget_tree)
     args = _plotly_treemap_args(treemap)
-    assert args['branchvalues'] == 'remainder'
-    assert args['values'] == [info.weight for (info, _) in treemap.iter_nodes()]
+    assert args['branchvalues'] == 'total'
+    assert args['values'] == [info.subtotal for (info, _) in treemap.iter_nodes()]
     assert args['marker_colors'] is None
     color_func = lambda _: 'green'
     args = _plotly_treemap_args(treemap, color_func=color_func)
     assert args['marker_colors'] == ['green' for _ in range(treemap.size)]
     # create plotly plot (but don't actually display it)
-    treemap.draw_treemap()
+    for style in TreemapStyle.__args__:
+        treemap.draw_treemap(style=style)
+    with pytest.raises(ValueError, match="invalid treemap style 'fake'"):
+        treemap.draw_treemap(style='fake')
     # save plot to an SVG file
     try:
         svg_path = tmp_path / 'treemap.svg'

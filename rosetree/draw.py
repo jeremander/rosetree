@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     import plotly.graph_objects as go  # type: ignore[import-not-found]
 
     from .tree import BaseTree
-    from .weighted import NodeWeightInfo, Treemap
+    from .weighted import NodeWeightInfo, Treemap, TreemapStyle
 
 
 T = TypeVar('T')
@@ -403,7 +403,7 @@ def _plotly_treemap_args(treemap: Treemap[T], color_func: Optional[Callable[[T],
         marker_colors = None
     else:
         marker_colors = [color_func(label) for (_, label) in nodes]
-    values = [info.weight for (info, _) in nodes]
+    values = [info.subtotal for (info, _) in nodes]
     # customize the text
     def get_text(info: NodeWeightInfo) -> str:
         lines = []
@@ -417,7 +417,7 @@ def _plotly_treemap_args(treemap: Treemap[T], color_func: Optional[Callable[[T],
         return '<br>'.join(lines)
     text = [get_text(info) for (info, _) in nodes]
     return {
-        'branchvalues': 'remainder',
+        'branchvalues': 'total',
         'labels': labels,
         'parents': parents,
         'values': values,
@@ -427,10 +427,18 @@ def _plotly_treemap_args(treemap: Treemap[T], color_func: Optional[Callable[[T],
         'marker_colors': marker_colors,
     }
 
-def _draw_plotly_treemap(treemap: Treemap[T], color_func: Optional[Callable[[T], str]] = None) -> go.Figure:
+def _draw_plotly_treemap(treemap: Treemap[T], *, style: TreemapStyle = 'treemap', color_func: Optional[Callable[[T], str]] = None) -> go.Figure:
     import plotly.graph_objects as go
     kwargs = _plotly_treemap_args(treemap, color_func=color_func)
-    return go.Figure(go.Treemap(**kwargs))
+    if style == 'treemap':
+        cls = go.Treemap
+    elif style == 'icicle':
+        cls = go.Icicle
+    elif style == 'sunburst':
+        cls = go.Sunburst
+    else:
+        raise ValueError(f'invalid treemap style {style!r}')
+    return go.Figure(cls(**kwargs))
 
 def show_or_save_figure(fig: go.Figure, filename: Optional[str] = None, **kwargs: Any) -> None:
     """Given a plotly Figure and an optional filename, displays the figure if the filename is None, and otherwise saves it to the given file.
