@@ -30,6 +30,9 @@ def test_round_significant_figures(x, sigfigs, output):
 @pytest.mark.parametrize(['x', 'percent'], [
     (0, '0%'),
     (0.000001, '0.0001%'),
+    (0.0000012, '0.00012%'),
+    (0.00000125, '0.00012%'),  # NOTE: this should be 0.00013%
+    (0.00000126, '0.00013%'),
     (0.0001, '0.01%'),
     (0.001, '0.1%'),
     (0.01, '1%'),
@@ -40,6 +43,7 @@ def test_round_significant_figures(x, sigfigs, output):
     (0.995, '100%'),
     (0.999, '100%'),
     (1, '100%'),
+
 ])
 def test_make_percent(x, percent):
     assert make_percent(x) == percent

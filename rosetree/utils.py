@@ -35,4 +35,5 @@ def make_percent(x: float) -> str:
     pct = round_significant_figures(pct, 2)
     if pct == int(pct):
         pct = int(pct)
-    return f'{pct}%'
+    pct_str = f'{pct:f}'.rstrip('0').rstrip('.')
+    return f'{pct_str}%'
