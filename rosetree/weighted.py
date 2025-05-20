@@ -20,6 +20,11 @@ WeightedNode = tuple[Weight, T]
 # a tree with weights on the nodes
 NodeWeightedTree = BaseTree[WeightedNode[T]]
 
+# mode for interpreting weights in a node-weighted tree
+#   local: weight of a node is its own (local) weight
+#   total: weight of a node is the sum of its own weight and that of all its descendants
+NodeWeightMode = Literal['local', 'total']
+
 # style for plotting a treemap (node-weighted tree)
 TreemapStyle = Literal['treemap', 'icicle', 'sunburst']
 
@@ -49,11 +54,14 @@ class NodeWeightInfo(NamedTuple):
     subtotal_to_global: Optional[float]
 
 
-def aggregate_weight_info(tree: BaseTree[Weight]) -> BaseTree[NodeWeightInfo]:
+def aggregate_weight_info(tree: BaseTree[Weight], mode: NodeWeightMode = 'local') -> BaseTree[NodeWeightInfo]:
     """Given a tree of (node-local) weights, aggregates this into an identically structured tree of `NodeWeightInfo` providing more information such as subtree total weight, fraction of a subtree's total to its parent subtree's total, etc.
+    If mode = 'local', each node's weight is local to itself; if 'total', it is the total weight of its subtree.
     Raises a ValueError if any weight is negative."""
+    if mode not in ['local', 'total']:
+        raise ValueError(f'invalid node weight mode {mode!r}')
     cls = cast(Type[BaseTree[NodeWeightInfo]], type(tree))
-    global_total = tree.reduce(add)
+    global_total = tree.reduce(add) if (mode == 'local') else tree.node
     def check_valid_weight(weight: Weight) -> None:
         if not isfinite(weight):
             raise ValueError(f'encountered weight {weight}, all weights must be finite')
@@ -61,13 +69,21 @@ def aggregate_weight_info(tree: BaseTree[Weight]) -> BaseTree[NodeWeightInfo]:
             raise ValueError(f'encountered weight {weight}, all weights must be nonnegative')
     def func(node: Weight, children: Sequence[BaseTree[NodeWeightInfo]]) -> BaseTree[NodeWeightInfo]:
         check_valid_weight(node)
-        subtotal = node + sum(child.node.subtotal for child in children)
-        self_to_subtotal = _safe_divide(node, subtotal)
-        self_to_global = _safe_divide(node, global_total)
+        children_total = sum(child.node.subtotal for child in children)
+        if mode == 'local':
+            weight = node
+            subtotal = weight + children_total
+        else:
+            subtotal = node
+            if subtotal < children_total:
+                raise ValueError(f'child subtotal ({children_total}) exceeds parent total ({subtotal})')
+            weight = subtotal - children_total
+        self_to_subtotal = _safe_divide(weight, subtotal)
+        self_to_global = _safe_divide(weight, global_total)
         subtotal_to_global = _safe_divide(subtotal, global_total)
         # temporary value for subtotal_to_parent (will get replaced when processing parent)
         placeholder = None if (subtotal == 0.0) else 1.0
-        info = NodeWeightInfo(node, subtotal, self_to_subtotal, self_to_global, placeholder, subtotal_to_global)
+        info = NodeWeightInfo(weight, subtotal, self_to_subtotal, self_to_global, placeholder, subtotal_to_global)
         # modify childrens' subtotal_to_parent
         def fix_child(child: BaseTree[NodeWeightInfo]) -> BaseTree[NodeWeightInfo]:
             subtotal_to_parent = _safe_divide(child.node.subtotal, subtotal)
@@ -81,10 +97,11 @@ class Treemap(Tree[tuple[NodeWeightInfo, T]]):
     """A tree tagged with `NodeWeightInfo` data, providing information about each node's weight relative to its parent and the global total."""
 
     @classmethod
-    def from_node_weighted_tree(cls, tree: NodeWeightedTree[T]) -> Self:
+    def from_node_weighted_tree(cls, tree: NodeWeightedTree[T], mode: NodeWeightMode = 'local') -> Self:
         """Constructs a Treemap from a tree whose nodes are (weight, data) pairs.
-        This tree will be structured identically to the original, but instead of weights we have `NodeWeightInfo` objects."""
-        weight_info_tree = aggregate_weight_info(tree.map(itemgetter(0)))
+        This tree will be structured identically to the original, but instead of weights we have `NodeWeightInfo` objects.
+        If mode = 'local', each node's weight is local to itself; if 'total', it is the total weight of its subtree."""
+        weight_info_tree = aggregate_weight_info(tree.map(itemgetter(0)), mode=mode)
         def replace_weight(info: NodeWeightInfo, pair: WeightedNode[T]) -> tuple[NodeWeightInfo, T]:
             return (info, pair[1])
         return cls.wrap(zip_trees_with(replace_weight, weight_info_tree, tree), deep=True)  # type: ignore[misc]

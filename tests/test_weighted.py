@@ -13,52 +13,84 @@ from rosetree.weighted import NodeWeightInfo, Treemap, TreemapStyle, aggregate_w
 def flip(pair):
     return pair[::-1]
 
-@pytest.mark.parametrize(['tree', 'err_type', 'err_match'], [
+@pytest.mark.parametrize(['tree', 'mode', 'err_type', 'err_match'], [
     (
         Tree(-1),
+        'local',
         ValueError,
         'encountered weight -1, all weights must be nonnegative'
     ),
     (
         Tree(-inf),
+        'local',
         ValueError,
         'encountered weight -inf, all weights must be finite'
     ),
     (
         Tree(inf),
+        'local',
         ValueError,
         'encountered weight inf, all weights must be finite'
     ),
     (
         Tree(0, [Tree(-1)]),
+        'local',
         ValueError,
         'encountered weight -1, all weights must be nonnegative'
     ),
     (
         Tree(0, [Tree(-1), Tree(-2)]),
+        'local',
         ValueError,
         'encountered weight -1, all weights must be nonnegative'
     ),
     # validation is depth-first
     (
         Tree(0, [Tree(0, [Tree(-1)]), Tree(-2)]),
+        'local',
         ValueError,
         'encountered weight -1, all weights must be nonnegative'
     ),
     (
         Tree('a'),
+        'local',
         TypeError,
         'must be real number, not str'
     ),
     (
         Tree(None),
+        'local',
         TypeError,
         'must be real number, not NoneType'
     ),
+    (
+        Tree(1),
+        'fake',
+        ValueError,
+        "invalid node weight mode 'fake'"
+    ),
+    (
+        Tree(-1),
+        'total',
+        ValueError,
+        'encountered weight -1, all weights must be nonnegative'
+    ),
+    (
+        Tree(inf),
+        'total',
+        ValueError,
+        'encountered weight inf, all weights must be finite'
+    ),
+    (
+        Tree(1, [Tree(2)]),  # total of children cannot exceed parent total
+        'total',
+        ValueError,
+        r'child subtotal \(2\) exceeds parent total \(1\)'
+    ),
 ])
-def test_aggregate_weight_info_invalid(tree, err_type, err_match):
+def test_aggregate_weight_info_invalid_tree(tree, mode, err_type, err_match):
     with pytest.raises(err_type, match=err_match):
-        _ = aggregate_weight_info(tree)
+        _ = aggregate_weight_info(tree, mode=mode)
 
 @pytest.mark.parametrize(['tree1', 'tree2'], [
     (
@@ -144,7 +176,8 @@ def test_aggregate_weight_info_valid(tree1, tree2):
     # weights match their original ones
     assert tree1_agg.map(attrgetter('weight')) == tree1
     # subtotals match those calculated via scan
-    assert tree1_agg.map(attrgetter('subtotal')) == tree1.scan(add)
+    tree1_totals = tree1_agg.map(attrgetter('subtotal'))
+    assert tree1_totals == tree1.scan(add)
     # self_to_subtotal is weight/subtotal
     def is_valid(info):
         if info.subtotal == 0.0:
@@ -158,6 +191,8 @@ def test_aggregate_weight_info_valid(tree1, tree2):
     tree4 = tree1_agg.tag_with_unique_counter().map(flip)
     # aggregation of tree with counter tags matches counter-tagged aggregate tree
     assert Treemap.from_node_weighted_tree(tree3) == Treemap.wrap(tree4, deep=True)
+    # aggregation in 'total' mode when node weights are subtotals matches the result of 'local' mode
+    assert aggregate_weight_info(tree1_totals, mode='total') == tree1_agg
 
 
 # example monthly budget by category
