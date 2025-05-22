@@ -260,22 +260,16 @@ PRETTY_TREES = [
 """,
     },
     {
-        'tree': Tr(''),
-        'bottom-up': '',
-        'top-down': '',
-        'long': '',
-    },
-    {
         'tree': Tr('', [Tree(''), Tree(2)]),
         'bottom-up': """
 
- ┌┴┐
-   2
+ ┌┴─┐
+    2
 """,
         'top-down': """
 
- ┌┴┐
-   2
+ ┌┴─┐
+    2
 """,
         'long': """
 
@@ -283,10 +277,170 @@ PRETTY_TREES = [
 └── 2
 """
     },
+    # nodes with space characters
+    {
+        'tree': Tr(' '),
+        'bottom-up': ' ',
+        'top-down': ' ',
+        'long': ' '
+    },
+    {
+        'tree': Tr('a', [Tr(' ')]),
+        'bottom-up': """
+ a
+ │
+
+""",
+        'top-down': """
+ a
+ │
+
+""",
+        'long': """
+a
+└──
+"""
+    },
+    # nodes with empty string
+    {
+        'tree': Tr(''),
+        'bottom-up': ' ',
+        'top-down': ' ',
+        'long': ''
+    },
+    {
+        'tree': Tr('a', [Tr('')]),
+        'bottom-up': """
+ a
+ │
+
+""",
+        'top-down': """
+ a
+ │
+
+""",
+        'long': """
+a
+└──
+"""
+    },
+    {
+        'tree': Tr('', [Tr('a')]),
+        'bottom-up': """
+
+ │
+ a
+""",
+        'top-down': """
+
+ │
+ a
+""",
+        'long': """
+
+└── a
+"""
+    },
+    {
+        'tree': Tr('', [Tr('')]),
+        'bottom-up': """
+
+ │
+
+""",
+        'top-down': """
+
+ │
+
+""",
+        'long': """
+
+└──
+"""
+    },
+    # nodes with newlines
+    {
+        'tree': Tr('a\nb'),
+        'bottom-up': """
+ a
+ b
+""",
+        'top-down': """
+ a
+ b
+""",
+        'long': """
+a
+b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('b\nc')]),
+        'bottom-up': """
+ a
+ │
+ b
+ c
+""",
+        'top-down': """
+ a
+ │
+ b
+ c
+""",
+        'long': """
+a
+└── b
+    c
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('b\nc'), Tr('d')]),
+        'bottom-up': """
+  a
+ ┌┴─┐
+ b  │
+ c  d
+""",
+        'top-down': """
+  a
+ ┌┴─┐
+ b  d
+ c
+""",
+        'long': """
+a
+├── b
+│   c
+└── d
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('b\nc'), Tr('')]),
+        'bottom-up': """
+  a
+ ┌┴─┐
+ b  │
+ c
+""",
+        'top-down': """
+  a
+ ┌┴─┐
+ b
+ c
+""",
+        'long': """
+a
+├── b
+│   c
+└──
+"""
+    },
 ]
 
 def _normalize_pretty(s):
-    return '\n'.join(line.rstrip() for line in s.splitlines()).rstrip('\n')
+    return '\n'.join(line.rstrip() for line in s.splitlines()).removesuffix('\n')
 
 def _is_increasing(it, strict: bool = True):
     prev = None

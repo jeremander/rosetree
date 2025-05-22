@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from math import ceil
 import re
+import string
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Self
@@ -64,7 +65,7 @@ def pretty_tree_long(tree: BaseTree[T]) -> str:
     Each node is printed on its own line.
     This format is analogous to the Linux `tree` command."""
     def _pretty_lines(node: T, children: Sequence[list[str]]) -> list[str]:
-        lines = [str(node)]
+        lines = str(node).splitlines() or ['']
         num_children = len(children)
         for (i, child_lines) in enumerate(children):
             assert child_lines
@@ -127,6 +128,11 @@ def _extend_box_char_down(c: str) -> str:
         return '┼'
     return c
 
+# mapping from ASCII whitespace to private-use characters
+_SPACES_TO_PRIVATE = {ord(c): 0xe0000 + i for (i, c) in enumerate(string.whitespace) if (c != '\n')}
+# mapping from private-use characters to ASCII whitespace
+_PRIVATE_TO_SPACES = {j: i for (i, j) in _SPACES_TO_PRIVATE.items()}
+
 
 class Column(NamedTuple):
     """Tuple of elements for a fixed-width column of text, which may consist of multiple rows."""
@@ -170,9 +176,11 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
     If top_down = True, positions nodes of the same depth on the same vertical level.
     Otherwise, positions leaf nodes on the same vertical level.
     spacing is an integer indicating the minimum number of spaces between each column."""
+    placeholder = chr(_SPACES_TO_PRIVATE[ord(' ')])
     def conjoin_subtrees(node: T, children: Sequence[Column]) -> Column:
-        node_str = str(node)
-        node_lines = node_str.splitlines() if node_str else ['']
+        # NOTE: we convert space characters (except newline) to private-use characters, since line-drawing needs to distinguish between "intended" spaces and blank space.
+        node_str = str(node).translate(_SPACES_TO_PRIVATE)
+        node_lines = node_str.splitlines() if node_str else [placeholder]
         node_width = max(map(len, node_lines))
         node_lines = [line.ljust(node_width) for line in node_lines]
         if (num_children := len(children)) == 0:  # leaf
@@ -194,6 +202,7 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
                 start = spans[-1][1]
                 spans.append((start + num_spaces, start + num_spaces + child_width))
             centers = [start + child_center for ((start, _), child_center) in zip(spans, child_centers)]
+            assert max(centers) < width
             (lcenter, rcenter) = (centers[0], centers[-1])
             midpoint = lcenter + _center_index(rcenter - lcenter + 1)
             edges = [_get_box_char(j, lcenter, midpoint, rcenter) for j in range(width)]
@@ -205,7 +214,6 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
         column_spans = {center: (start, stop) for (center, (start, stop)) in zip(centers, spans) if (start <= center < stop)}
         # insert '|' downward to each child
         text_cols = [list(col) for col in zip(*rows)]
-        # extension_indices = set()  # indices at which to branch downward
         for (j, col) in enumerate(text_cols):
             if (span := column_spans.get(j)) is None:
                 continue
@@ -225,7 +233,7 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
     lines = tree.fold(conjoin_subtrees).rows
     # ensure the tree is padded on the left & right
     lines = _pad_lines(lines)
-    return '\n'.join(lines)
+    return '\n'.join(lines).translate(_PRIVATE_TO_SPACES)
 
 
 ##################
