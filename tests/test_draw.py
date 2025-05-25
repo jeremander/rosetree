@@ -437,6 +437,301 @@ a
 └──
 """
     },
+    {
+        'tree': Tr('a', [Tr('b\nc', [Tr('d')])]),
+        'bottom-up': """
+ a
+ │
+ b
+ c
+ │
+ d
+""",
+        'top-down': """
+ a
+ │
+ b
+ c
+ │
+ d
+""",
+        'long': """
+a
+└── b
+    c
+    └── d
+"""
+    },
+    {
+        # space before both lines
+        'tree': Tr('a', [Tr(' b\n c', [Tr('d')])]),
+        'bottom-up': """
+ a
+ │
+  b
+  c
+ │
+ d
+""",
+        'top-down': """
+ a
+ │
+  b
+  c
+ │
+ d
+""",
+        # we *could* extend the horizontal line from 'a' to connect, but this would break the usual pattern
+        'long': """
+a
+└──  b
+    │c
+    └── d
+"""
+    },
+    {
+        # space before first line only
+        'tree': Tr('a', [Tr(' b\nc', [Tr('d')])]),
+        'bottom-up': """
+ a
+ │
+  b
+ c
+ │
+ d
+""",
+        'top-down': """
+ a
+ │
+  b
+ c
+ │
+ d
+""",
+        'long': """
+a
+└──  b
+    c
+    └── d
+"""
+    },
+    {
+        # space before second line only
+        'tree': Tr('a', [Tr('b\n c', [Tr('d')])]),
+        'bottom-up': """
+ a
+ │
+ b
+  c
+ │
+ d
+""",
+        'top-down': """
+ a
+ │
+ b
+  c
+ │
+ d
+""",
+        'long': """
+a
+└── b
+    │c
+    └── d
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n', [Tr('b')])]),
+        'bottom-up': """
+ a
+ │
+
+
+ │
+ b
+""",
+        'top-down': """
+ a
+ │
+
+
+ │
+ b
+""",
+        'long': """
+a
+└──
+
+    └── b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n ', [Tr('b')])]),
+        'bottom-up': """
+ a
+ │
+
+
+ │
+ b
+""",
+        'top-down': """
+ a
+ │
+
+
+ │
+ b
+""",
+        # the bar extends through the space character
+        'long': """
+a
+└──
+    │
+    └── b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr(' \n', [Tr('b')])]),
+        'bottom-up': """
+ a
+ │
+
+
+ │
+ b
+""",
+        'top-down': """
+ a
+ │
+
+
+ │
+ b
+""",
+        'long': """
+a
+└──
+
+    └── b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n\n', [Tr('b')])]),
+        'bottom-up': """
+ a
+ │
+
+
+
+ │
+ b
+""",
+        'top-down': """
+ a
+ │
+
+
+
+ │
+ b
+""",
+        'long': """
+a
+└──
+
+
+    └── b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n \n', [Tr('b')])]),
+        'bottom-up': """
+ a
+ │
+
+
+
+ │
+ b
+""",
+        'top-down': """
+ a
+ │
+
+
+
+ │
+ b
+""",
+        # the bar extends through the space character
+        'long': """
+a
+└──
+    │
+
+    └── b
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n b\n', [Tr('c')])]),
+        'bottom-up': """
+ a
+ │
+
+  b
+
+ │
+ c
+""",
+        'top-down': """
+ a
+ │
+
+  b
+
+ │
+ c
+""",
+        # the bar extends through the space character
+        'long': """
+a
+└──
+    │b
+
+    └── c
+"""
+    },
+    {
+        'tree': Tr('a', [Tr('\n b\n ', [Tr('c')])]),
+        'bottom-up': """
+ a
+ │
+
+  b
+
+ │
+ c
+""",
+        'top-down': """
+ a
+ │
+
+  b
+
+ │
+ c
+""",
+        # the bar extends through both space characters
+        'long': """
+a
+└──
+    │b
+    │
+    └── c
+"""
+    },
 ]
 
 def _normalize_pretty(s):

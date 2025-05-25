@@ -60,13 +60,27 @@ BoxPair = tuple[Box, Box]
 
 # LONG FORMAT
 
+def _insert_vertical_bar(lines: list[str]) -> list[str]:
+    new_lines = []
+    for (i, line) in enumerate(lines):
+        if (i > 0) and line and line[0].isspace():
+            line = '│' + line[1:]
+        new_lines.append(line)
+    return new_lines
+
 def pretty_tree_long(tree: BaseTree[T]) -> str:
     """Given a tree whose nows can be converted to strings via `str`, produces a pretty rendering of that tree in "long format."
     Each node is printed on its own line.
     This format is analogous to the Linux `tree` command."""
-    def _pretty_lines(node: T, children: Sequence[list[str]]) -> list[str]:
-        lines = str(node).splitlines() or ['']
+    def pretty_lines(node: T, children: Sequence[list[str]]) -> list[str]:
+        node_str = str(node)
+        lines = node_str.splitlines() or ['']
+        if node_str.endswith('\n'):
+            lines.append('')
+        # lines = _node_to_lines(node)
         num_children = len(children)
+        if num_children > 0:
+            lines = _insert_vertical_bar(lines)
         for (i, child_lines) in enumerate(children):
             assert child_lines
             if i < num_children - 1:
@@ -78,7 +92,7 @@ def pretty_tree_long(tree: BaseTree[T]) -> str:
             lines.append(prefix1 + child_lines[0])
             lines.extend([prefix2 + line for line in child_lines[1:]])
         return lines
-    lines = tree.fold(_pretty_lines)
+    lines = tree.fold(pretty_lines)
     return '\n'.join(lines)
 
 # WIDE FORMAT
@@ -176,11 +190,17 @@ def pretty_tree_wide(tree: BaseTree[T], *, top_down: bool = False, spacing: int 
     If top_down = True, positions nodes of the same depth on the same vertical level.
     Otherwise, positions leaf nodes on the same vertical level.
     spacing is an integer indicating the minimum number of spaces between each column."""
-    placeholder = chr(_SPACES_TO_PRIVATE[ord(' ')])
+    def make_lines(node: T) -> list[str]:
+        node_str = str(node)
+        if (not node_str) or node_str.startswith('\n'):
+            node_str = ' ' + node_str
+        if node_str.endswith('\n'):
+            node_str += ' '
+        return node_str.splitlines()
     def conjoin_subtrees(node: T, children: Sequence[Column]) -> Column:
+        node_lines = make_lines(node)
         # NOTE: we convert space characters (except newline) to private-use characters, since line-drawing needs to distinguish between "intended" spaces and blank space.
-        node_str = str(node).translate(_SPACES_TO_PRIVATE)
-        node_lines = node_str.splitlines() if node_str else [placeholder]
+        node_lines = [(line or ' ').translate(_SPACES_TO_PRIVATE) for line in node_lines]
         node_width = max(map(len, node_lines))
         node_lines = [line.ljust(node_width) for line in node_lines]
         if (num_children := len(children)) == 0:  # leaf
